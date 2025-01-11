@@ -6,13 +6,14 @@ import os
 # Funzione per creare il grafo dal JSON
 def crea_grafo_da_json(dialogo_json):
     G = nx.DiGraph()  # Creiamo un grafo diretto
-
+    id_nodo = 0
     # Iteriamo su ogni dialogo nel JSON
     for dialogo in dialogo_json:
         # Aggiungiamo i nodi (ogni EDU è un nodo)
         for edu in dialogo["edus"]:
-            id_nodo = edu["speechturn"]
-            G.add_node(id_nodo)  # Solo l'indice del nodo, senza il contenuto
+            #id_nodo = edu["speechturn"]
+            G.add_node(id_nodo, text = edu["text"])
+            id_nodo += 1
 
         # Aggiungiamo le relazioni (archi tra i nodi)
         for relazione in dialogo["relations"]:
@@ -54,12 +55,14 @@ def esporta_utterances_singolo(dialogo, id_dialogo, cartella_output="output"):
 
     nome_file_output = os.path.join(cartella_output, f"dialogo_{id_dialogo}.txt")
     with open(nome_file_output, 'w') as f:
+        id_nodo = 0
         f.write(f"Dialogo {id_dialogo}:\n")
         for edu in dialogo["edus"]:
-            id_nodo = edu["speechturn"]
+            #id_nodo = edu["speechturn"]
             speaker = edu["speaker"]
             text = edu["text"]
             f.write(f"Utterance {id_nodo} - {speaker}: {text}\n")
+            id_nodo += 1
         f.write("\n")
     print(f"Esportato: {nome_file_output}")
 
@@ -71,7 +74,7 @@ def carica_json_da_file(nome_file):
 # Esegui il programma
 if __name__ == "__main__":
     # Chiedi all'utente di inserire il nome del file JSON
-    nome_file = 'STAC_testing.json'
+    nome_file = "dataset/STAC/train_subindex.json"
 
     try:
         # Carica i dati dal file JSON
