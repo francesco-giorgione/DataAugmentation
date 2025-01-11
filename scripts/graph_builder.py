@@ -71,6 +71,7 @@ def carica_json_da_file(nome_file):
     with open(nome_file, 'r') as file:
         return json.load(file)
 
+
 # Esegui il programma
 if __name__ == "__main__":
     # Chiedi all'utente di inserire il nome del file JSON

@@ -61,7 +61,9 @@ def conta_relazioni(json_file, output_file):
     else:
         print("Non ci sono relazioni nel file JSON.")
 
-# Specifica il nome del file JSON di input e il file di output per l'istogramma
-json_input_file = 'STAC_testing.json'  # Modifica con il nome del tuo file JSON
-output_image_file = 'relazioni_istogramma.png'  # Modifica con il nome del file di output desiderato
-conta_relazioni(json_input_file, output_image_file)
+
+if __name__ == '__main__':
+    # Specifica il nome del file JSON di input e il file di output per l'istogramma
+    json_input_file = 'STAC_testing.json'  # Modifica con il nome del tuo file JSON
+    output_image_file = 'relazioni_istogramma.png'  # Modifica con il nome del file di output desiderato
+    conta_relazioni(json_input_file, output_image_file)
