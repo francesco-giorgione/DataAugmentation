@@ -29,6 +29,11 @@ if __name__ == '__main__':
         "EXAMPLE: 'It is raining outside' → 'The skies are pouring their tears today.'\n"
     ]
 
+    sentences_4 = [
+        "Please paraphrase the following sentence with more creativity." +
+        "\nTEXT: I feel bad today. \nParaphrase:"
+    ]
+
     sentences_2 = [
         "Which course should I take to get started in data science?",
         "She wasn't looking for a knight, she was looking for a sword.",
@@ -41,7 +46,12 @@ if __name__ == '__main__':
         "I feel happy today, and you?"
     ]
 
-    for sentence in sentences_1:
+    sentences_3 = [
+        "Si prega di parafrasare la seguente frase senza alterarne il significato." +
+        "\nFrase: Il tempo oggi è bellissimo, perfetto per una passeggiata al parco.\nParafrasi:"
+    ]
+
+    for sentence in sentences_4:
         # Generate paraphrased sentence
         result = get_response(sentence, num_return_sequences=3, num_beams=10)
 
