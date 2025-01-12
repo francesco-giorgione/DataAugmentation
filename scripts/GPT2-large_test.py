@@ -61,7 +61,7 @@ if __name__ == '__main__':
     # Creiamo e visualizziamo un grafo per ogni dialogo nel JSON
     
     
-    graph = crea_grafo_da_json([input_json[1]])  # Passiamo il singolo dialogo come lista
+    graph = crea_grafo_da_json([input_json[0]])  # Passiamo il singolo dialogo come lista
     # visualizza_grafo_dag(graph, 1)  # Visualizziamo il grafo del dialogo
     target_node = 2
     if target_node in graph:
@@ -77,10 +77,10 @@ if __name__ == '__main__':
         all_relevant_nodes = reachable_nodes.union(ancestor_nodes)
 
         # Estrai il sottografo
-        subgraph = graph.subgraph(all_relevant_nodes)
+        subgraph = graph.subgraph(ancestor_nodes)
         
         # Visualizza il sottografo
-        # visualizza_grafo_dag(subgraph, 1)
+        visualizza_grafo_dag(subgraph, 1)
 
         # Stampa i nodi e gli archi del grafo
         print("Nodi nel grafo:", graph.nodes())
@@ -94,13 +94,16 @@ if __name__ == '__main__':
 
     utt_subgraph = ""
     for edu, att in subgraph.nodes(data=True):
-        speaker = att["speaker"]
-        text = att["text"]
-        utt_subgraph += f"Utterance {edu} - {speaker}: {text}\n"
-        #id_nodo += 1
+        utt_subgraph += f"Utterance {edu} - {att["speaker"]}: {att["text"]}\n"
+
+    relations = ""
+    for nodo1, nodo2, att in subgraph.edges(data=True):
+        relations += f"({nodo1}, {nodo2}) - {att['relationship']}\n"
+
+    utt_subgraph += "Relations: " + relations
 
     print(utt_subgraph)
-    prompt_graph = f"Generate a new utterance instead of the utterance {target_node}, without changing the meaning of Dialogue. Dialogue: \n{utt_subgraph} \n Utterance {target_node}: "
+    prompt_graph = f"Generates a new utterance in place of the {target_node} utterance, without changing the meaning of the utterance and without changing the relations between the utterances. Dialogue: \n{utt_subgraph} \n Utterance {target_node}: "
 
     response = get_response(prompt_graph)
 
