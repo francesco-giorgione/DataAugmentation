@@ -12,7 +12,7 @@ def crea_grafo_da_json(dialogo_json):
         # Aggiungiamo i nodi (ogni EDU è un nodo)
         for edu in dialogo["edus"]:
             #id_nodo = edu["speechturn"]
-            G.add_node(id_nodo, text = edu["text"])
+            G.add_node(id_nodo, text = edu["text"], speaker = edu["speaker"])
             id_nodo += 1
 
         # Aggiungiamo le relazioni (archi tra i nodi)

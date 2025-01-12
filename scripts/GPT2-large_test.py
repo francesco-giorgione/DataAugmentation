@@ -1,5 +1,10 @@
+import json
 import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
+from graph_builder import *
+import networkx as nx
+from networkx.readwrite import json_graph
+
 
 model_name = "gpt2-large"  # Puoi scegliere modelli più piccoli come 'gpt2-medium' se vuoi
 model = GPT2LMHeadModel.from_pretrained(model_name)
@@ -16,6 +21,7 @@ def get_response(prompt):
 
     # Maschera di attention che fa in modo che solo i token reali vengano considerati (token di padding scartati)
     attention_mask = torch.ones(input_ids.shape, device=input_ids.device)
+    pad_token_id = model.config.eos_token_id if hasattr(model.config, 'eos_token_id') else None
 
     # Genera una continuazione del testo
     output = model.generate(
@@ -26,7 +32,8 @@ def get_response(prompt):
         top_p=0.2,
         temperature=0.5,
         do_sample=True,
-        attention_mask=attention_mask
+        attention_mask=attention_mask,
+        pad_token_id = model.config.eos_token_id
     )
 
     generated_text = tokenizer.decode(output[0], skip_special_tokens=True)
@@ -48,8 +55,53 @@ if __name__ == '__main__':
     Original sentence: 'It's cloudy today'
     Paraphrase: """
 
+    # Carica i dati dal file JSON
+    input_json = carica_json_da_file('dataset/STAC/train_subindex.json')
 
-    response = get_response(prompt_2)
+    # Creiamo e visualizziamo un grafo per ogni dialogo nel JSON
+    
+    
+    graph = crea_grafo_da_json([input_json[1]])  # Passiamo il singolo dialogo come lista
+    # visualizza_grafo_dag(graph, 1)  # Visualizziamo il grafo del dialogo
+    target_node = 2
+    if target_node in graph:
+        # Ottieni i discendenti (nodi raggiungibili dal target)
+        reachable_nodes = nx.descendants(graph, target_node)
+        reachable_nodes.add(target_node)  # Includi il nodo target stesso
 
+        # Ottieni gli antenati (nodi che possono raggiungere il target)
+        ancestor_nodes = nx.ancestors(graph, target_node)
+        ancestor_nodes.add(target_node)  # Includi il nodo target stesso
 
-    print(f'{prompt_2}\n\n{response}')
+        # Combina i nodi raggiungibili e gli antenati
+        all_relevant_nodes = reachable_nodes.union(ancestor_nodes)
+
+        # Estrai il sottografo
+        subgraph = graph.subgraph(all_relevant_nodes)
+        
+        # Visualizza il sottografo
+        # visualizza_grafo_dag(subgraph, 1)
+
+        # Stampa i nodi e gli archi del grafo
+        print("Nodi nel grafo:", graph.nodes())
+        print("Archi nel grafo:", graph.edges())
+
+        # Stampa i nodi e gli archi del sottografo
+        print("Nodi nel sottografo:", subgraph.nodes())
+        print("Archi nel sottografo:", subgraph.edges())
+    else:
+        print(f"Il nodo {target_node} non è presente nel grafo.")
+
+    utt_subgraph = ""
+    for edu, att in subgraph.nodes(data=True):
+        speaker = att["speaker"]
+        text = att["text"]
+        utt_subgraph += f"Utterance {edu} - {speaker}: {text}\n"
+        #id_nodo += 1
+
+    print(utt_subgraph)
+    prompt_graph = f"Generate a new utterance instead of the utterance {target_node}, without changing the meaning of Dialogue. Dialogue: \n{utt_subgraph} \n Utterance {target_node}: "
+
+    response = get_response(prompt_graph)
+
+    print(f'\n\n{response}')
