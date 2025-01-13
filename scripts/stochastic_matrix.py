@@ -79,10 +79,9 @@ def create_stochastic_matrix(dict_relazioni, name_dataset):
 
 
 if __name__ == "__main__":
-    path_file1 = ['dataset/STAC/train_subindex.json', 'dataset/STAC/test_subindex.json']
-    path_file2 = ['dataset/MOLWENI/dev.json', 'dataset/MOLWENI/test.json', 'dataset/MOLWENI/train.json']
-    path_file3 = ['dataset/MINECRAFT/DEV_32_bert.json', 'dataset/MINECRAFT/TEST_101_bert.json', 'dataset/MINECRAFT/TEST_133.json', 
-                    'dataset/MINECRAFT/TRAIN_307_bert.json', 'dataset/MINECRAFT/VAL_100_bert.json']
+    path_file1 = ['dataset/STAC/train_subindex.json']
+    path_file2 = ['dataset/MOLWENI/train.json']
+    path_file3 = ['dataset/MINECRAFT/TRAIN_307_bert.json']
     dict_relazioni1 = defaultdict(int)
     dict_relazioni2 = defaultdict(int)
     dict_relazioni3 = defaultdict(int)
