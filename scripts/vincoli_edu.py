@@ -22,7 +22,8 @@ def get_edus_list(data):
     unique_edus = set()
     for dialogue in data:
         for turn in dialogue.get('edus', []):
-            edu_text = turn.get('text', "")
+
+            edu_text = "[CLS] " + turn.get('text', "")
             unique_edus.add(edu_text)
     return list(unique_edus)
 
