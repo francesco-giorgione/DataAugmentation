@@ -2,7 +2,7 @@ import json
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
-def conta_relazioni(json_file, output_file):
+def conta_relazioni(json_file, output_file, path_file):
     # Carica il file JSON
     with open(json_file, 'r', encoding='utf-8') as file:
         data = json.load(file)
@@ -34,9 +34,15 @@ def conta_relazioni(json_file, output_file):
         conteggi = [conteggio for _, conteggio in relazioni_ordinate]
         percentuali = [(conteggio / totale_relazioni) * 100 for conteggio in conteggi]
 
+        tmp_str = []
         # Stampa i risultati con percentuali
         for tipo_relazione, conteggio, percentuale in zip(tipi_relazioni, conteggi, percentuali):
-            print(f"{tipo_relazione}: {conteggio} ({percentuale:.2f}%)")
+            tmp_str.append(f"{tipo_relazione}: {conteggio} ({percentuale:.2f}%)")
+            # print(tmp_str)
+
+        with open(path_file, "w") as file:
+            for el in tmp_str:
+                file.write(el + "\n")
 
         # Genera l'istogramma
         plt.figure(figsize=(10, 6))
@@ -46,7 +52,7 @@ def conta_relazioni(json_file, output_file):
         for bar, conteggio in zip(bars, conteggi):
             height = bar.get_height()
             plt.text(bar.get_x() + bar.get_width() / 2, height + 1, str(conteggio),
-                     ha='center', va='bottom', fontsize=10, color='black')
+                        ha='center', va='bottom', fontsize=10, color='black')
 
         plt.xlabel('Tipi di Relazioni')
         plt.ylabel('Percentuale (%)')
@@ -66,4 +72,8 @@ if __name__ == '__main__':
     # Specifica il nome del file JSON di input e il file di output per l'istogramma
     json_input_file = 'STAC_testing.json'  # Modifica con il nome del tuo file JSON
     output_image_file = 'relazioni_istogramma.png'  # Modifica con il nome del file di output desiderato
-    conta_relazioni(json_input_file, output_image_file)
+
+
+    conta_relazioni('dataset/STAC/train_subindex.json', 'graphic/STAC_relazioni_istogramma.png', 'info_rel/STAC_rel.txt')
+    conta_relazioni('dataset/MOLWENI/train.json', 'graphic/MOLWENI_relazioni_istogramma.png', 'info_rel/MOLWENI_rel.txt')
+    conta_relazioni('dataset/MINECRAFT/TRAIN_307_bert.json', 'graphic/MINECRAFT_relazioni_istogramma.png', 'info_rel/MINECRAFT_rel.txt')
