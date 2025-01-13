@@ -1,5 +1,7 @@
 import random
 import torch
+import os
+import json
 from transformers import BertTokenizer, BertModel
 from sklearn.metrics.pairwise import cosine_similarity
 from vincoli_edu import *
@@ -26,6 +28,8 @@ def create_word_embeddings(edus_list):
         truncation=True
     )
 
+    #print(inputs)
+
     with torch.no_grad():
         outputs = model(**inputs)
 
@@ -35,17 +39,32 @@ def create_word_embeddings(edus_list):
     print(f"Shape of word embeddings: {word_embeddings.shape}")
     return word_embeddings
 
+
 def main():
     file_path = "dataset/STAC/train_subindex.json"
     data = load_data(file_path)
 
+    #tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+
     edus_list = get_edus_list(data)
 
-    print(f"Number of EDUs: {len(edus_list)}")
+    print(f"Numero di dialoghi: {len(edus_list)}")
     print(edus_list[:5])
 
     embeddings = create_word_embeddings(edus_list)
-    #print(embeddings)
+    print(embeddings[0].size())
+    print(embeddings[1].size())
+    # print(embeddings[2].size())
+    
+    # Salvataggio in un file
+    torch.save(embeddings, "output/stac_edus_embeddings.pt")
+
+    # # Caricamento dal file
+    # loaded_tensor = torch.load("output/tensor.pt")
+
+    # decoded_text = tokenizer.decode(loaded_tensor[0, 0, :], skip_special_tokens=True)
+    
+    # print(decoded_text)
 
 if __name__ == "__main__":
     main()
