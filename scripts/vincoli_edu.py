@@ -30,14 +30,12 @@ def get_edus_list(data):
 
 def get_dialogue_edus_list(data):
     dialogue_edus_list = []
-    i = 0
     for element in data:
         edus = []
         for turn in element.get('edus'):
             edus.append(turn.get('text'))
 
-        dialogue_edus_list.append([i, edus])
-        i += 1
+        dialogue_edus_list.append(edus)
 
     return dialogue_edus_list
 
@@ -81,20 +79,20 @@ def get_edus_counter_list(data):
     return edu_list
 
 def plot_top_edus(edu_list, dataset_name):
-    top_20_edus = edu_list[:20]
-    edus = [item[0] for item in top_20_edus]  # EDU text
-    counts = [item[1] for item in top_20_edus]  # Frequenza
+    top_10_edus = edu_list[:10]
+    edus = [item[0] for item in top_10_edus]  # EDU text
+    counts = [item[1] for item in top_10_edus]  # Frequenza
 
-    plt.figure(figsize=(10, 6))
+    plt.figure(figsize=(12, 8))
     plt.bar(edus, counts, color='skyblue')
-    plt.xticks(rotation=90, fontsize=10)
-    plt.xlabel("EDU", fontsize=12)
-    plt.ylabel("Frequenza", fontsize=12)
+    plt.xticks(rotation=45, fontsize=10)
+    plt.xlabel("EDU", fontsize=10)
+    plt.ylabel("Frequenza", fontsize=10)
     plt.title(dataset_name + "- EDUs più frequenti", fontsize=14)
     plt.tight_layout()
 
     plt.savefig(f"edus_analysis/{dataset_name}_top_edus.png")
-    # plt.show()
+    #lt.show()
 
 def main():
     
@@ -115,11 +113,13 @@ def main():
         edus_counter_list = get_edus_counter_list(data)
 
         
-        print(f"Numbero di EDUs del dataset" + dataset_name + f": {len(edus_lengths)}")
-        print(f"Lunghezza media delle EDU del dataset" + dataset_name + f": {sum(edus_lengths) / len(edus_lengths):.2f}")
-        print(f"Number of EDUs senza ripetizioni" + dataset_name + f": {len(edus_counter_list)}")
-        # print("Sample of EDUs with counts:")
-        # print(edus_counter_list[:20])
+        print(f"Numbero di EDUs del dataset " + dataset_name + f": {len(edus_lengths)}")
+        print(f"Lunghezza media delle EDU del dataset " + dataset_name + f": {sum(edus_lengths) / len(edus_lengths):.2f}")
+        print(f"Number of EDUs senza ripetizioni " + dataset_name + f": {len(edus_counter_list)}")
+        
+        print("Top 10 EDU più frequenti e relativa frequenza:")
+        print(edus_counter_list[:10])
+
 
         plot_top_edus(edus_counter_list, dataset_name)
 
