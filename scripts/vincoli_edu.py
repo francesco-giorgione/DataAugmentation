@@ -22,10 +22,18 @@ def get_edus_list(data):
     unique_edus = set()
     for dialogue in data:
         for turn in dialogue.get('edus', []):
-
             edu_text = "[CLS] " + turn.get('text', "")
             unique_edus.add(edu_text)
     return list(unique_edus)
+
+# Funzione che restituisce la lista delle EDU del primo dialogo del dataset
+def get_edus_list_first(data):
+    unique_edus = []
+    for dialogue in data:
+        for turn in dialogue.get('edus', []):
+            edu_text = "[CLS] " + turn.get('text', "")
+            unique_edus.append(edu_text)
+        return list(unique_edus)
 
 # Funzione che restituisce la lista di dialoghi contenuti nel dataset con il token [CLS] indicante l'inizio
 # della stringa e i token [SEP] che contraddistinguono le singole EDU di ogni dialogo. Tali token sono
