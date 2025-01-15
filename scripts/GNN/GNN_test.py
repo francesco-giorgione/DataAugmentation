@@ -90,14 +90,14 @@ def get_metrics(predictions, labels):
     return accuracy, precision, recall
 
 
-def print_results(probabilities, predictions, labels):
-    print('Probabilities:', probabilities)
-    print('Predictions:', predictions)
-    print('Labels:', labels)
+def results(probabilities, predictions, labels):
+    # print('Probabilities:', probabilities)
+    # print('Predictions:', predictions)
+    # print('Labels:', labels)
 
     loss = loss_fn(probabilities, labels)
     accuracy, precision, recall = get_metrics(predictions, labels)
-    print(f'Loss: {loss:.3f}, Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
+    return loss, accuracy, precision, recall
 
 
 def test(model, embs, true_edges):
@@ -117,7 +117,8 @@ def test(model, embs, true_edges):
     probabilities = decoder(updated_embs, all_edges)
     predictions = (probabilities >= 0.7).float()
 
-    print_results(probabilities, predictions, labels)
+    loss, accuracy, precision, recall = results(probabilities, predictions, labels)
+    print(f'Loss: {loss:.3f}, Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
 
 
 def old_train(model, embs, true_edges, num_epochs=100, learning_rate=0.01):
@@ -142,7 +143,7 @@ def old_train(model, embs, true_edges, num_epochs=100, learning_rate=0.01):
 
         loss = loss_fn(predictions, labels)
         loss.backward()     # Aggiorna i pesi
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=3.0)
         optimizer.step()
 
         if loss.item() < best_loss:
@@ -167,7 +168,8 @@ def old_train(model, embs, true_edges, num_epochs=100, learning_rate=0.01):
     probabilities = decoder(updated_embs, all_edges)
     predictions = (probabilities >= 0.7).float()
 
-    print_results(probabilities, predictions, labels)
+    loss, accuracy, precision, recall = results(probabilities, predictions, labels)
+    print(f'Loss: {loss:.3f}, Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
     return model
 
 
@@ -181,9 +183,48 @@ def one_worker(dataset_filename, embs_filename):
     test(model, embs, true_edges)
 
 
-def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001, batch_size=10):
+def test_batch(model, dataset_filename, embs_filename, batch_size=10):
+    decoder = LinkPredictionDecoder()
+    n = n_dialogues(dataset_filename)
+    num_samples = min(batch_size, n)
+    indices = random.sample(range(n), num_samples)
+
+    total_loss, total_accuracy, total_precision, total_recall = 0, 0, 0, 0
+
+    for i in indices:
+        embs = get_embs(embs_filename, i)
+        true_edges = get_edges(dataset_filename, i)
+        all_edges = get_all_edges(embs)
+        labels = get_labels(all_edges, true_edges)
+
+        model.eval()
+        data = Data(x=embs, edge_index=true_edges)
+
+        with torch.no_grad():
+            updated_embs = model(data)
+
+        probabilities = decoder(updated_embs, all_edges)
+        predictions = (probabilities >= 0.7).float()
+
+        print(f'Dialogue {i} included for validation')
+        curr_loss, curr_accuracy, curr_precision, curr_recall = results(probabilities, predictions, labels)
+        total_loss += curr_loss
+        total_accuracy += curr_accuracy
+        total_precision += curr_precision
+        total_recall += curr_recall
+
+    loss = total_loss/batch_size
+    accuracy = total_accuracy/batch_size
+    precision = total_precision/batch_size
+    recall = total_recall/batch_size
+
+    print(f'Loss: {loss:.3f}, Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
+
+
+def train_batch(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001, batch_size=10):
     decoder = LinkPredictionDecoder()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
     best_loss = float('inf')
     patience = 10
     patience_counter = 0
@@ -194,6 +235,8 @@ def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning
 
         num_samples = min(batch_size, n)
         indices = random.sample(range(n), num_samples)
+        print(f'n dialogues: {n}')
+        print(f'indices: {indices}')
 
         for j in indices:
             print(f'Epoch {epoch + 1}, Dialogue {j}')
@@ -211,7 +254,7 @@ def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning
 
             sum_loss += loss_fn(probabilities, labels)
 
-        loss = sum_loss / num_samples
+        loss = sum_loss / num_samples   # Media della loss sui campioni dell'i-esima epoca
         loss.backward()     # Aggiorna i pesi
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
         optimizer.step()
@@ -223,7 +266,7 @@ def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning
             patience_counter += 1
 
         if patience_counter >= patience:
-            print(f'Early stopping at epoch {epoch}')
+            print(f'Early stopping at epoch {epoch + 1}')
             # predictions = (probabilities >= 0.7).float()
             # print_results(probabilities, predictions, labels)
 
@@ -234,15 +277,18 @@ def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning
     return model
 
 
-def all_worker(dataset_filename, embs_filename):
-    model = GATLinkPrediction(embedding_dimension=384, hidden_channels=128, num_layers=2, heads=12)
-    trained_model = batch_train(model, dataset_filename, embs_filename, batch_size=1)
+def all_worker(training_dataset_filename, training_embs_filename, testing_dataset_filename=None, testing_embs_filename=None):
+    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=128, num_layers=1, heads=12)
+    trained_model = train_batch(model, training_dataset_filename, training_embs_filename, batch_size=50)
+    test_batch(trained_model, testing_dataset_filename, testing_embs_filename, batch_size=50)
 
 
 def main():
     # one_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/STAC_training_embeddings.json')
-    all_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/STAC_training_embeddings.json')
-
+    # all_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/MPNet/STAC_training_embeddings.json',
+    #            '../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json')
+    all_worker('../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
+              '../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json')
 
 if __name__ == '__main__':
     main()
