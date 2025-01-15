@@ -5,7 +5,7 @@ import os
 
 def create_embeddings(dialogue_edus_list):
 
-    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
     
     # Lista per memorizzare le coppie (contatore, lista di embeddings)
     embeddings_edu_list = []
@@ -46,12 +46,11 @@ def save_embeddings(embeddings_edu_list, filename):
 
 def main():
 
-    dataset_name_list = ["STAC_training", "MOLWENI_training", "MINECRAFT_training", 
-                         "STAC_testing", "MOLWENI_testing", "MINECRAFT_testing101", "MINECRAFT_testing133",
-                         "MOLWENI_val", "MINECRAFT_val32", "MINECRAFT_val100"]
+    # dataset_name_list = ["STAC_training", "MOLWENI_training", "MINECRAFT_training", 
+    #                      "STAC_testing", "MOLWENI_testing", "MINECRAFT_testing101", "MINECRAFT_testing133",
+    #                      "MOLWENI_val", "MINECRAFT_val32", "MINECRAFT_val100"]
 
-    #dataset_name_list = ["MOLWENI_training", "MOLWENI_testing"]
-            
+    dataset_name_list = ["STAC_training", "STAC_testing"]
 
     for dataset_name in dataset_name_list:
         if dataset_name == "STAC_training":
@@ -77,7 +76,6 @@ def main():
         elif dataset_name == "MINECRAFT_val100":
             file_path = "dataset/MINECRAFT/VAL_100_bert.json"
 
-
         data = load_data(file_path)
 
         edus_list = get_dialogue_edus_list(data)
@@ -94,12 +92,8 @@ def main():
         # similarities = model.similarity(embeddings_edu_list[0][1], embedding_esempio[0][1])
         # print(similarities)
 
-        save_embeddings(embeddings_edu_list, f"embeddings/MiniLM/{dataset_name}_embeddings.json")
+        save_embeddings(embeddings_edu_list, f"embeddings/MPNet/{dataset_name}_embeddings.json")
     
 
 if __name__ == "__main__":
     main()
-
-
-
-
