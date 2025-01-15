@@ -58,10 +58,15 @@ def conta_relazioni(json_file, output_file, path_file):
         plt.ylabel('Percentuale (%)')
         plt.title('Distribuzione delle Relazioni')
         plt.xticks(rotation=45, ha='right')
-        plt.tight_layout()
+
+        # Estendi i limiti dell'asse y per lasciare spazio ai valori sopra le barre
+        plt.ylim(0, max(percentuali) + 5)
+
+        # Aggiungi margini per evitare tagli
+        plt.subplots_adjust(bottom=0.2, left=0.1, right=0.95, top=0.9)
 
         # Salva l'istogramma su un file
-        plt.savefig(output_file)
+        plt.savefig(output_file, bbox_inches='tight')
         print(f"Grafico salvato come {output_file}")
         plt.close()
     else:
