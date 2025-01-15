@@ -46,25 +46,28 @@ def save_embeddings(embeddings_edu_list, filename):
 
 def main():
 
-    dataset_name_list = ["STAC_train", "MOLWENI_train", "MINECRAFT_train", 
-                         "STAC_test", "MOLWENI_test", "MINECRAFT_test101", "MINECRAFT_test133",
+    dataset_name_list = ["STAC_training", "MOLWENI_training", "MINECRAFT_training", 
+                         "STAC_testing", "MOLWENI_testing", "MINECRAFT_testing101", "MINECRAFT_testing133",
                          "MOLWENI_val", "MINECRAFT_val32", "MINECRAFT_val100"]
 
+    #dataset_name_list = ["MOLWENI_training", "MOLWENI_testing"]
+            
+
     for dataset_name in dataset_name_list:
-        if dataset_name == "STAC_train":
+        if dataset_name == "STAC_training":
             file_path = "dataset/STAC/train_subindex.json"
-        elif dataset_name == "MOLWENI_train":
+        elif dataset_name == "MOLWENI_training":
             file_path = "dataset/MOLWENI/train.json"
-        elif dataset_name == "MINECRAFT_train":
+        elif dataset_name == "MINECRAFT_training":
             file_path = "dataset/MINECRAFT/TRAIN_307_bert.json"
 
-        elif dataset_name == "STAC_test":
+        elif dataset_name == "STAC_testing":
             file_path = "dataset/STAC/test_subindex.json"
-        elif dataset_name == "MOLWENI_test":
+        elif dataset_name == "MOLWENI_testing":
             file_path = "dataset/MOLWENI/test.json"
-        elif dataset_name == "MINECRAFT_test101":
+        elif dataset_name == "MINECRAFT_testing101":
             file_path = "dataset/MINECRAFT/TEST_101_bert.json"
-        elif dataset_name == "MINECRAFT_test133":
+        elif dataset_name == "MINECRAFT_testing133":
             file_path = "dataset/MINECRAFT/TEST_133.json"
 
         elif dataset_name == "MOLWENI_val":
@@ -73,6 +76,7 @@ def main():
             file_path = "dataset/MINECRAFT/DEV_32_bert.json"
         elif dataset_name == "MINECRAFT_val100":
             file_path = "dataset/MINECRAFT/VAL_100_bert.json"
+
 
         data = load_data(file_path)
 
@@ -90,7 +94,7 @@ def main():
         # similarities = model.similarity(embeddings_edu_list[0][1], embedding_esempio[0][1])
         # print(similarities)
 
-        save_embeddings(embeddings_edu_list, f"embeddings/{dataset_name}_embeddings.json")
+        save_embeddings(embeddings_edu_list, f"embeddings/MiniLM/{dataset_name}_embeddings.json")
     
 
 if __name__ == "__main__":
