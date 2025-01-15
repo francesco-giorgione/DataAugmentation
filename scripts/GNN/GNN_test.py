@@ -3,6 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from GAT import GATLinkPrediction, LinkPredictionDecoder
+import random
 
 
 def test_json(embs_filename, dialogue_index):
@@ -12,6 +13,13 @@ def test_json(embs_filename, dialogue_index):
     for item in data:
         print(item)
         print('\n\n\n\n')
+
+
+def n_dialogues(dataset_filename):
+    with open(dataset_filename, 'r', encoding='utf-8') as file:
+        data = json.load(file)
+
+    return len(data)
 
 
 def get_embs(embs_filename, dialogue_index):
@@ -26,7 +34,7 @@ def get_edges(dataset_filename, dialogue_index):
     with open(dataset_filename, 'r', encoding='utf-8') as file:
         tmp = [(rel['x'], rel['y']) for rel in json.load(file)[dialogue_index]['relations']]
 
-    print(tmp)
+    # print(tmp)
     lst1, lst2 = zip(*tmp)
     lst1 = list(lst1)
     lst2 = list(lst2)
@@ -63,8 +71,10 @@ def get_labels(all_edges, true_edges):
     return labels
 
 
-def loss_fn(pred, labels):
-    return F.binary_cross_entropy(pred, labels)
+def loss_fn(pred, labels, pos_weight=2.0, neg_weight=1.0):
+    weights = torch.where(labels == 1, pos_weight, neg_weight)
+    loss = F.binary_cross_entropy(pred, labels, weight=weights)
+    return loss
 
 
 def get_metrics(predictions, labels):
@@ -100,20 +110,19 @@ def test(model, embs, true_edges):
     with torch.no_grad():
         updated_embs = model(data)
 
-    print(f'Embedding node 0:', updated_embs[0])
-    print(f'Embedding node 1:', updated_embs[1])
+    # print(f'Embedding node 0:', updated_embs[0])
+    # print(f'Embedding node 1:', updated_embs[1])
 
     decoder = LinkPredictionDecoder()
     probabilities = decoder(updated_embs, all_edges)
-    predictions = (probabilities >= 0.6).float()
+    predictions = (probabilities >= 0.7).float()
 
     print_results(probabilities, predictions, labels)
 
 
-def train(embs, true_edges, num_epochs=100, learning_rate=0.01):
+def old_train(model, embs, true_edges, num_epochs=100, learning_rate=0.01):
     all_edges = get_all_edges(embs)
     labels = get_labels(all_edges, true_edges)
-    model = GATLinkPrediction(embedding_dimension=384, hidden_channels=128, num_layers=2, heads=12)
     decoder = LinkPredictionDecoder()
 
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -146,7 +155,7 @@ def train(embs, true_edges, num_epochs=100, learning_rate=0.01):
             print(f'Early stopping at epoch {epoch}')
             break
 
-        if (epoch + 1) % 100 == 0 or epoch == 0:
+        if (epoch + 1) % 10 == 0 or epoch == 0:
             print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {loss.item():.4f}")
             # print(f'Embedding node 0 a iter {i}:', updated_embs[0])
             # print(f'updated embs in iter {i}: {updated_embs}')
@@ -156,19 +165,134 @@ def train(embs, true_edges, num_epochs=100, learning_rate=0.01):
     print(f'Embedding node 0:', updated_embs[0])
     print(f'Embedding node 1:', updated_embs[1])
     probabilities = decoder(updated_embs, all_edges)
-    predictions = (probabilities >= 0.6).float()
+    predictions = (probabilities >= 0.7).float()
 
     print_results(probabilities, predictions, labels)
     return model
 
 
-def main():
-    embs = get_embs('../../embeddings/STAC_training_embeddings.json', 0)
-    true_edges = get_edges('../../dataset/STAC/train_subindex.json', 0)
-    trained_model = train(embs, true_edges, num_epochs=2000, learning_rate=0.001)
-
+def one_worker(dataset_filename, embs_filename):
+    embs = get_embs(embs_filename, 12)
+    true_edges = get_edges(dataset_filename, 12)
     # model = GATLinkPrediction(embedding_dimension=384, hidden_channels=128, num_layers=2, heads=12)
-    # test(model, embs, true_edges)
+    # trained_model = old_train(model, embs, true_edges, num_epochs=100, learning_rate=0.001)
+
+    model = GATLinkPrediction(embedding_dimension=384, hidden_channels=128, num_layers=2, heads=12)
+    test(model, embs, true_edges)
+
+
+def stochastic_train(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001):
+    decoder = LinkPredictionDecoder()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    best_loss = float('inf')
+    patience = 10
+    patience_counter = 0
+
+    for epoch in range(num_epochs):
+        dialogue_index = random.randint(0, n_dialogues(dataset_filename) - 1)
+        embs = get_embs(embs_filename, dialogue_index)
+        true_edges = get_edges(dataset_filename, dialogue_index)
+        all_edges = get_all_edges(embs)
+        labels = get_labels(all_edges, true_edges)
+
+        model.train()
+        data = Data(x=embs, edge_index=true_edges)
+
+        optimizer.zero_grad()  # Resetta i gradienti
+        updated_embs = model(data)
+        probabilities = decoder(updated_embs, all_edges)
+
+        loss = loss_fn(probabilities, labels)
+        loss.backward()     # Aggiorna i pesi
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            patience_counter = 0
+        else:
+            patience_counter += 1
+
+        if patience_counter >= patience:
+            print(f'Early stopping at epoch {epoch}')
+            predictions = (probabilities >= 0.7).float()
+            print_results(probabilities, predictions, labels)
+
+            break
+
+        print(f"Epoch {epoch + 1}/{num_epochs}, selected dialogue {dialogue_index} - Loss: {loss.item():.4f}")
+
+        # if (epoch + 1) % 10 == 0 or epoch == 0:
+        #     print(f"Epoch {epoch + 1}/{num_epochs}, selected dialogue {dialogue_index} - Loss: {loss.item():.4f}")
+            # print(f'Embedding node 0 a iter {i}:', updated_embs[0])
+            # print(f'updated embs in iter {i}: {updated_embs}')
+            # print(f'predictions in iter {i}: {predictions}')
+
+    return model
+
+
+def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001, batch_size=10):
+    decoder = LinkPredictionDecoder()
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+    best_loss = float('inf')
+    patience = 10
+    patience_counter = 0
+
+    for epoch in range(num_epochs):
+        sum_loss = 0
+        n = n_dialogues(dataset_filename)
+
+        num_samples = min(batch_size, n)
+        indices = random.sample(range(n), num_samples)
+
+        for j in indices:
+            print(f'Epoch {epoch}, Dialogue {j}')
+            embs = get_embs(embs_filename, j)
+            true_edges = get_edges(dataset_filename, j)
+            all_edges = get_all_edges(embs)
+            labels = get_labels(all_edges, true_edges)
+
+            model.train()
+            data = Data(x=embs, edge_index=true_edges)
+
+            optimizer.zero_grad()  # Resetta i gradienti
+            updated_embs = model(data)
+            probabilities = decoder(updated_embs, all_edges)
+
+            sum_loss += loss_fn(probabilities, labels)
+
+        loss = sum_loss / num_samples
+        loss.backward()     # Aggiorna i pesi
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        optimizer.step()
+
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            patience_counter = 0
+        else:
+            patience_counter += 1
+
+        if patience_counter >= patience:
+            print(f'Early stopping at epoch {epoch}')
+            # predictions = (probabilities >= 0.7).float()
+            # print_results(probabilities, predictions, labels)
+
+            break
+
+        print(f"Epoch {epoch + 1}/{num_epochs} - Loss: {loss.item():.4f}")
+
+    return model
+
+
+def all_worker(dataset_filename, embs_filename):
+    model = GATLinkPrediction(embedding_dimension=384, hidden_channels=128, num_layers=2, heads=12)
+    trained_model = batch_train(model, dataset_filename, embs_filename)
+
+
+def main():
+    # one_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/STAC_training_embeddings.json')
+    all_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/STAC_training_embeddings.json')
+
 
 if __name__ == '__main__':
     main()
