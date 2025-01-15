@@ -181,56 +181,6 @@ def one_worker(dataset_filename, embs_filename):
     test(model, embs, true_edges)
 
 
-def stochastic_train(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001):
-    decoder = LinkPredictionDecoder()
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
-    best_loss = float('inf')
-    patience = 10
-    patience_counter = 0
-
-    for epoch in range(num_epochs):
-        dialogue_index = random.randint(0, n_dialogues(dataset_filename) - 1)
-        embs = get_embs(embs_filename, dialogue_index)
-        true_edges = get_edges(dataset_filename, dialogue_index)
-        all_edges = get_all_edges(embs)
-        labels = get_labels(all_edges, true_edges)
-
-        model.train()
-        data = Data(x=embs, edge_index=true_edges)
-
-        optimizer.zero_grad()  # Resetta i gradienti
-        updated_embs = model(data)
-        probabilities = decoder(updated_embs, all_edges)
-
-        loss = loss_fn(probabilities, labels)
-        loss.backward()     # Aggiorna i pesi
-        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        optimizer.step()
-
-        if loss.item() < best_loss:
-            best_loss = loss.item()
-            patience_counter = 0
-        else:
-            patience_counter += 1
-
-        if patience_counter >= patience:
-            print(f'Early stopping at epoch {epoch}')
-            predictions = (probabilities >= 0.7).float()
-            print_results(probabilities, predictions, labels)
-
-            break
-
-        print(f"Epoch {epoch + 1}/{num_epochs}, selected dialogue {dialogue_index} - Loss: {loss.item():.4f}")
-
-        # if (epoch + 1) % 10 == 0 or epoch == 0:
-        #     print(f"Epoch {epoch + 1}/{num_epochs}, selected dialogue {dialogue_index} - Loss: {loss.item():.4f}")
-            # print(f'Embedding node 0 a iter {i}:', updated_embs[0])
-            # print(f'updated embs in iter {i}: {updated_embs}')
-            # print(f'predictions in iter {i}: {predictions}')
-
-    return model
-
-
 def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001, batch_size=10):
     decoder = LinkPredictionDecoder()
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
@@ -246,7 +196,7 @@ def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning
         indices = random.sample(range(n), num_samples)
 
         for j in indices:
-            print(f'Epoch {epoch}, Dialogue {j}')
+            print(f'Epoch {epoch + 1}, Dialogue {j}')
             embs = get_embs(embs_filename, j)
             true_edges = get_edges(dataset_filename, j)
             all_edges = get_all_edges(embs)
@@ -286,7 +236,7 @@ def batch_train(model, dataset_filename, embs_filename, num_epochs=100, learning
 
 def all_worker(dataset_filename, embs_filename):
     model = GATLinkPrediction(embedding_dimension=384, hidden_channels=128, num_layers=2, heads=12)
-    trained_model = batch_train(model, dataset_filename, embs_filename)
+    trained_model = batch_train(model, dataset_filename, embs_filename, batch_size=1)
 
 
 def main():
