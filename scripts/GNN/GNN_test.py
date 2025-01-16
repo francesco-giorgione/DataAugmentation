@@ -282,7 +282,7 @@ def train_batch(model, dataset_filename, embs_filename, num_epochs=100, learning
 
 
 def all_worker(training_dataset_filename, training_embs_filename, testing_dataset_filename=None, testing_embs_filename=None):
-    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=128, num_layers=1, heads=12)
+    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=128, num_layers=2, heads=12)
     trained_model = train_batch(model, training_dataset_filename, training_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
     test_batch(trained_model, testing_dataset_filename, testing_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
 
