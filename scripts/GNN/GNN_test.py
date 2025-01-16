@@ -2,7 +2,7 @@ import json
 import torch
 import torch.nn.functional as F
 from torch_geometric.data import Data
-from GAT import GATLinkPrediction, LinkPredictionDecoder
+from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictionMLP
 import random
 
 
@@ -183,8 +183,10 @@ def one_worker(dataset_filename, embs_filename):
     test(model, embs, true_edges)
 
 
-def test_batch(model, dataset_filename, embs_filename, batch_size=10):
-    decoder = LinkPredictionDecoder()
+def test_batch(model, dataset_filename, embs_filename, batch_size=10, decoder=None):
+    if decoder is None:
+        decoder = LinkPredictionDecoder()
+
     n = n_dialogues(dataset_filename)
     num_samples = min(batch_size, n)
     indices = random.sample(range(n), num_samples)
@@ -221,8 +223,10 @@ def test_batch(model, dataset_filename, embs_filename, batch_size=10):
     print(f'Loss: {loss:.3f}, Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
 
 
-def train_batch(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001, batch_size=10):
-    decoder = LinkPredictionDecoder()
+def train_batch(model, dataset_filename, embs_filename, num_epochs=100, learning_rate=0.001, batch_size=10, decoder=None):
+    if decoder is None:
+        decoder = LinkPredictionDecoder()
+
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
     best_loss = float('inf')
@@ -279,8 +283,8 @@ def train_batch(model, dataset_filename, embs_filename, num_epochs=100, learning
 
 def all_worker(training_dataset_filename, training_embs_filename, testing_dataset_filename=None, testing_embs_filename=None):
     model = GATLinkPrediction(embedding_dimension=768, hidden_channels=128, num_layers=1, heads=12)
-    trained_model = train_batch(model, training_dataset_filename, training_embs_filename, batch_size=50)
-    test_batch(trained_model, testing_dataset_filename, testing_embs_filename, batch_size=50)
+    trained_model = train_batch(model, training_dataset_filename, training_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
+    test_batch(trained_model, testing_dataset_filename, testing_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
 
 
 def main():
