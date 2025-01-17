@@ -5,7 +5,6 @@ from torch.utils.data import DataLoader
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictorMLP
-from ogb.linkproppred import Evaluator
 import random
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 
@@ -115,7 +114,7 @@ def train_worker(model, link_predictor, emb, edge_index, pos_train_edge, batch_s
 
     # batch_size=pos_train_edge.shape[0] affinché il singolo aggiornamento consideri tutti gli archi
     for edge_id in DataLoader(range(pos_train_edge.shape[0]), batch_size=pos_train_edge.shape[0], shuffle=True):
-        optimizer.zero_grad()
+        # optimizer.zero_grad()
 
         data = Data(x=emb, edge_index=edge_index)   # (N, d)
         node_emb = model(data)
@@ -128,17 +127,23 @@ def train_worker(model, link_predictor, emb, edge_index, pos_train_edge, batch_s
         neg_pred = link_predictor(node_emb[neg_edge[0]], node_emb[neg_edge[1]])  # (Ne,)
 
         loss = -torch.log(pos_pred + 1e-15).mean() - torch.log(1 - neg_pred + 1e-15).mean()
-        loss.backward()
-        optimizer.step()
 
-        train_losses.append(loss.item())
+        # COMMENTATO perché voglio che l'aggiornamento sia fatto sul mini-batch di dialoghi, non sul singolo dialogo
+        # loss.backward()
+        # optimizer.step()
 
-    return sum(train_losses) / len(train_losses)
+        train_losses.append(loss)
+
+    # Codice commentato perché l'intero dialogo è processato tutto insieme: ho un unico valore di loss
+    # res = sum(train_losses) / len(train_losses)
+
+    # Restituisce la loss sul singolo dialogo
+    return train_losses[0]
 
 
-def test(dataset_filename, embs_filename, batch_size=100):
-    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
-    link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
+def test(dataset_filename, embs_filename, model, link_predictor, batch_size=100):
+    # model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
+    # link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
 
     n = n_dialogues(dataset_filename)
     num_samples = min(batch_size, n)
@@ -163,30 +168,47 @@ def test(dataset_filename, embs_filename, batch_size=100):
     print(f'Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}')
 
 
-def train(dataset_filename, embs_filename, model, link_predictor, num_epochs=100, batch_size=10, learning_rate=0.001):
-    # model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
-    # link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
+def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learning_rate=0.001):
+    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
+    link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
+
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=learning_rate)
 
     n = n_dialogues(dataset_filename)
     num_samples = min(batch_size, n)
 
     for epoch in range(num_epochs):
-        total_train_loss = 0
-        sampled_dialogues = random.sample(range(n), num_samples)
+        batch_losses = []
 
-        for dialogue_index in sampled_dialogues:
-            print(f'Sampled dialogue {dialogue_index}')
-            embs = get_embs(embs_filename, dialogue_index)
-            edge_index = get_edges(dataset_filename, dialogue_index)
-            total_train_loss += train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer)
+        for batch_index, batch_dialogues in enumerate(DataLoader(range(n), batch_size=batch_size, shuffle=True, num_workers=4), start=1):
+            dialogue_losses = []
+            batch_dialogues = batch_dialogues.tolist()
+            print('Sampled dialogues:', batch_dialogues)
 
-        print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {total_train_loss / n:.4f}")
+            for dialogue_index in batch_dialogues:
+                # print(f'Sampled dialogue {dialogue_index}')
+                embs = get_embs(embs_filename, dialogue_index)
+                edge_index = get_edges(dataset_filename, dialogue_index)
+                dialogue_losses.append(train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer))
+
+            batch_loss = torch.stack(dialogue_losses).mean()
+            batch_losses.append(batch_loss)
+
+            optimizer.zero_grad()
+            batch_loss.backward()
+            optimizer.step()
+
+            print(f"Epoch {epoch+1}/{num_epochs}, Batch {batch_index} -> Batch training Loss: {batch_loss:.4f}")
+
+        print(f'Num batch in epoch {epoch}: {batch_index}')
+        epoch_loss = torch.stack(batch_losses).mean()
+        print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
 
     return model, link_predictor
 
 
 if __name__ == '__main__':
-    trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json', '../../embeddings/MPNet/STAC_training_embeddings.json')
+    trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json',
+                  '../../embeddings/MPNet/STAC_training_embeddings.json', num_epochs=2)
     test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json', trained_model, trained_link_predictor)
 
