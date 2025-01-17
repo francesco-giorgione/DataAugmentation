@@ -36,6 +36,7 @@ class GATLinkPrediction(nn.Module):
 
         return x  # Gli embedding finali dei nodi (parole)
 
+
 # Classe che utilizza il dot product come misura di similarità tra due embeddings
 class LinkPredictionDecoder(nn.Module):
     def __init__(self):
@@ -50,9 +51,9 @@ class LinkPredictionDecoder(nn.Module):
         z_source = z[source]
         z_target = z[target]
 
-        # Calcola la similarità kernel-based
-        score = self.rbf_kernel(z_source, z_target)
-        return score
+        # Calcola il prodotto scalare tra i due embedding per calcolare la somiglianza
+        score = (z_source * z_target).sum(dim=1)
+        return torch.sigmoid(score)  # Probabilità di link
     
 # Classe che utilizza la Kernel-based Similarity come misura di similarità tra due embeddings
 class LinkPredictionDecoderKernel(nn.Module):
@@ -82,53 +83,29 @@ class LinkPredictionDecoderKernel(nn.Module):
         score = self.rbf_kernel(z_source, z_target)
         return score
 
-# Classe che utilizza i Multilayer Perceptron per misurare la similarità tra due embeddings
-class LinkPredictionMLP(nn.Module):
-    def __init__(self, input_dim, hidden_dim):
-        super(LinkPredictionMLP, self).__init__()
 
-        # Definizione del MLP
-        self.mlp = nn.Sequential(
-            nn.Linear(input_dim * 2, hidden_dim),  # Layer di input
-            nn.ReLU(),                            # Funzione di attivazione
-            nn.Linear(hidden_dim, 1)              # Layer di output
-        )   
+class LinkPredictorMLP(nn.Module):
+    def __init__(self, in_channels, hidden_channels, out_channels, num_layers,
+                 dropout):
+        super(LinkPredictorMLP, self).__init__()
 
-        # Inizializzazione dei pesi
-        self._init_weights()
+        self.lins = nn.ModuleList()
+        self.lins.append(nn.Linear(in_channels, hidden_channels))
+        for _ in range(num_layers - 2):
+            self.lins.append(nn.Linear(hidden_channels, hidden_channels))
+        self.lins.append(nn.Linear(hidden_channels, out_channels))
 
+        self.dropout = dropout
 
-    def _init_weights(self):
-        # Inizializza i pesi per ogni livello Linear
-        for layer in self.mlp:
-            if isinstance(layer, nn.Linear):  # Solo per i livelli Linear
-                nn.init.kaiming_uniform_(layer.weight)  # Kaiming Initialization per i pesi
-                #nn.init.zeros_(layer.bias)            # Inizializza i bias a zero
+    def reset_parameters(self):
+        for lin in self.lins:
+            lin.reset_parameters()
 
-    def forward(self, z, edge_index):
-        # Estrai gli indici sorgente e destinazione degli archi
-        source, target = edge_index
-
-        print(source.shape)
-        print(target.shape)
-
-        # Normalizza gli embedding
-        z = F.normalize(z, p=2, dim=1, eps=1e-12)
-
-        print(z.shape)
-
-        # Recupera gli embedding sorgente e destinazione
-        z_source = z[source]
-        z_target = z[target]
-
-        print(z_source.shape)
-        print(z_target.shape)
-
-        # Concatenazione degli embedding sorgente e destinazione
-        z_concat = torch.cat([z_source, z_target], dim=1)
-
-        print(z_concat.shape)
-        
-        # Calcola la probabilità di link usando l'MLP
-        score = self.mlp(z_concat)
-        return torch.sigmoid(score).squeeze(dim=1)  # Probabilità di link (tra 0 e 1)
+    def forward(self, x_i, x_j):
+        x = x_i * x_j
+        for lin in self.lins[:-1]:
+            x = lin(x)
+            x = F.relu(x)
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.lins[-1](x)
+        return torch.sigmoid(x)
