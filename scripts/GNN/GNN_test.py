@@ -283,16 +283,16 @@ def train_batch(model, dataset_filename, embs_filename, num_epochs=100, learning
 
 def all_worker(training_dataset_filename, training_embs_filename, testing_dataset_filename=None, testing_embs_filename=None):
     model = GATLinkPrediction(embedding_dimension=768, hidden_channels=128, num_layers=2, heads=16)
-    trained_model = train_batch(model, training_dataset_filename, training_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
-    test_batch(trained_model, testing_dataset_filename, testing_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
+    # trained_model = train_batch(model, training_dataset_filename, training_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
+    test_batch(model, testing_dataset_filename, testing_embs_filename, batch_size=50, decoder=LinkPredictionDecoderKernel(0.7))
 
 
 def main():
     # one_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/STAC_training_embeddings.json')
-    # all_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/MPNet/STAC_training_embeddings.json',
-    #            '../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json')
-    all_worker('../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
-              '../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json')
+    all_worker('../../dataset/STAC/train_subindex.json', '../../embeddings/MPNet/STAC_training_embeddings.json',
+               '../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json')
+    # all_worker('../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
+    #           '../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json')
 
 if __name__ == '__main__':
     main()
