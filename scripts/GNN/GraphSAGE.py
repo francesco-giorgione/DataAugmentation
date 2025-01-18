@@ -184,9 +184,12 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
                 non sono connesse nel grafo (cioè, non sono presenti in edge_index). Questi sono i negativi. 
                 Il numero di coppie negative campionate è pari a num_neg_samples, che corrisponde al numero 
                 di archi positivi, pos_train_edge.shape[0], così da avere lo stesso numero di esempi positivi e negativi.
+
+                Viene effeuata la trasposizione dell'output di negative_sampling per ottenere la stessa shape di 
+                pos_train_edge. In quanto di default la shape corrisponde a edge_index.
             """
             neg_edge = negative_sampling(edge_index, num_nodes=node_emb.shape[0],
-                                        num_neg_samples=pos_train_edge.shape[0], method='dense')  # (Ne, 2)
+                                        num_neg_samples=pos_train_edge.shape[0], method='dense').T  # (Ne, 2)
             # Previsione dei negativi
             neg_pred = link_predictor(node_emb[neg_edge[:, 0]], node_emb[neg_edge[:, 1]])  # (Ne,)
 
@@ -197,8 +200,8 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
                             Il modello dovrebbe dare basse probabilità per questi archi.
             """
 
-            print("Pos Pred:", pos_pred.T)
-            print("Neg Pred:", neg_pred.T)
+            print("Pos Pred:", pos_pred.shape)
+            print("Neg Pred:", neg_pred.shape)
             
             """
                 La loss di link prediction verrà calcolata confrontando pos_pred (che dovrebbe essere vicino a 1) 
