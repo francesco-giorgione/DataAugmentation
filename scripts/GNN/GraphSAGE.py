@@ -7,6 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import negative_sampling
+from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
 from GNN_test import *
 
@@ -75,6 +76,7 @@ class CustomEduDataset(Dataset):
 def collate_fn(batch):
     return Batch.from_data_list(batch)
 
+
 # GraphSAGE
 class GNNStack(torch.nn.Module):
     def __init__(self, input_dim, hidden_dim, output_dim, num_layers, dropout, emb=False):
@@ -113,7 +115,7 @@ class GNNStack(torch.nn.Module):
 
     def loss(self, pred, label):
         return F.nll_loss(pred, label)
-    
+
 
 # NN di Link Predictor
 class LinkPredictor(nn.Module):
@@ -146,6 +148,7 @@ class LinkPredictor(nn.Module):
 
 def train(model, num_epochs, link_predictor, train_loader, optimizer):
     model.train()
+    link_predictor.train()
     train_losses = []
 
     for epoch in range(num_epochs):
@@ -219,41 +222,73 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
     return sum(train_losses) / len(train_losses)
 
 
-
-""" 
-def test(model, predictor, emb, edge_index, split_edge, batch_size, evaluator):
+def test(model, num_epochs, link_predictor, evaluator, test_loader):
     model.eval()
-    predictor.eval()
+    link_predictor.eval()
+    test_losses = []
+    pos_pred = []
+    neg_pred =[]
 
-    node_emb = model(emb, edge_index)
 
-    pos_test_edge = split_edge['test']['edge'].to(emb.device)
-    neg_test_edge = split_edge['test']['edge_neg'].to(emb.device)
+    with torch.no_grad():   # senza tener traccia dei gradienti
+        for i, batch in enumerate(test_loader):
+            print(f"Batch {i}")
+            # Attributi del batch
+            node_emb = batch.x  # Embedding dei nodi (N, d)
+            # Due liste con archi in entrata e in uscita
+            edge_index = batch.edge_index  # Edge index (2, E)
+            # (source, target) che indica un arco positivo (realmente presente) nel grafo
+            pos_train_edge = batch.pos_train_edge  # Edge positive (B, 2)
 
-    pos_test_preds = []
-    for perm in DataLoader(range(pos_test_edge.size(0)), batch_size):
-        edge = pos_test_edge[perm].t()
-        pos_test_preds += [predictor(node_emb[edge[0]], node_emb[edge[1]]).squeeze().cpu()]
-    pos_test_pred = torch.cat(pos_test_preds, dim=0)
+            # Passa le embedding e gli archi attraverso il modello
+            node_emb = model(node_emb, edge_index)  # (N, d)
+            # print(edge_index)
 
-    neg_test_preds = []
-    for perm in DataLoader(range(neg_test_edge.size(0)), batch_size):
-        edge = neg_test_edge[perm].t()
-        neg_test_preds += [predictor(node_emb[edge[0]], node_emb[edge[1]]).squeeze().cpu()]
-    neg_test_pred = torch.cat(neg_test_preds, dim=0)
+            
+            """
+                link_predictor è un modello che prende gli embedding dei nodi e li usa per predire la
+                probabilità che esista un arco tra due nodi.
+                .squeeze() viene utilizzato per assicurarci che le previsioni per ogni arco siano 
+                memorizzate come un tensore a 1 dimensione.
+            """
+            tmp_pos_pred = link_predictor(node_emb[pos_train_edge[:, 0]], node_emb[pos_train_edge[:, 1]])
+            pos_pred.append(tmp_pos_pred.squeeze())
 
+
+            neg_edge = negative_sampling(edge_index, num_nodes=node_emb.shape[0],
+                                        num_neg_samples=pos_train_edge.shape[0], method='dense').T  # (Ne, 2)
+            # Previsione dei negativi
+            tmp_neg_pred = link_predictor(node_emb[neg_edge[:, 0]], node_emb[neg_edge[:, 1]]) 
+            neg_pred.append(tmp_neg_pred.squeeze())
+
+            """
+                - pos_pred: Le previsioni per gli archi che esistono effettivamente nel grafo. 
+                            L'idea è che il modello dovrebbe dare alte probabilità per questi archi.
+                - neg_pred: Le previsioni per gli archi che non esistono nel grafo (campionati negativamente). 
+                            Il modello dovrebbe dare basse probabilità per questi archi.
+            """
+            
+            loss = -torch.log(tmp_pos_pred + 1e-15).mean() - torch.log(1 - tmp_neg_pred + 1e-15).mean()
+
+            # Aggiungi la loss alla lista dei risultati
+            print(f"Loss: {loss.item()}")
+            test_losses.append(loss.item())
+
+
+    pos_pred = torch.cat(pos_pred, dim=0)
+    neg_pred = torch.cat(neg_pred, dim=0)
     results = {}
     for K in [20, 50, 100]:
         evaluator.K = K #using the Evaluator function in the ogb.linkproppred package
         test_hits = evaluator.eval({
-            'y_pred_pos': pos_test_pred,
-            'y_pred_neg': neg_test_pred,
+            'y_pred_pos': pos_pred,
+            'y_pred_neg': neg_pred,
         })[f'hits@{K}']
 
         results[f'Hits@{K}'] = test_hits
 
-    return results
-"""
+
+    return results, sum(test_losses) / len(test_losses)
 
 
 if __name__ == "__main__":
@@ -270,8 +305,6 @@ if __name__ == "__main__":
         embeddings_path='embeddings/STAC_testing_embeddings.json',
         edges_path='dataset/STAC/test_subindex.json'
     )
-    print(len(train_edu))
-    print(test_edu[0])
 
     """
         Il DataLoader gestisce la divisione del dataset in batch, per migliorare l'efficienza 
@@ -285,9 +318,13 @@ if __name__ == "__main__":
 
     model = GNNStack(input_dim=384, hidden_dim=384, output_dim=384, num_layers=4, dropout=0.6)
     link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=4, dropout=0.6)
+
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+    train(model, 2, link_predictor, train_emb_loader, optimizer)
 
-    train(model, 10, link_predictor, train_emb_loader, optimizer)
+    evaluator = Evaluator(name = 'ogbl-collab')
+    print(evaluator.expected_input_format) 
+    print(evaluator.expected_output_format) 
 
-    
-    
+    results = test(model, 1, link_predictor, evaluator, test_emb_loader)
+    print(results)
