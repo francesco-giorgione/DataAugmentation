@@ -9,7 +9,7 @@ from torch_geometric.data import Data, Batch
 from torch_geometric.utils import negative_sampling
 from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
-from GNN_test import *
+from GNN_new_test import eval_metrics
 
 
 # creazione dataset per l'apertura dei DAG
@@ -203,8 +203,8 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
                             Il modello dovrebbe dare basse probabilità per questi archi.
             """
 
-            print("Pos Pred:", pos_pred.shape)
-            print("Neg Pred:", neg_pred.shape)
+            # print("Pos Pred:", pos_pred.shape)
+            # print("Neg Pred:", neg_pred.shape)
             
             """
                 La loss di link prediction verrà calcolata confrontando pos_pred (che dovrebbe essere vicino a 1) 
@@ -227,7 +227,7 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
     link_predictor.eval()
     test_losses = []
     pos_pred = []
-    neg_pred =[]
+    neg_pred = []
 
 
     with torch.no_grad():   # senza tener traccia dei gradienti
@@ -267,7 +267,7 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
                 - neg_pred: Le previsioni per gli archi che non esistono nel grafo (campionati negativamente). 
                             Il modello dovrebbe dare basse probabilità per questi archi.
             """
-            
+
             loss = -torch.log(tmp_pos_pred + 1e-15).mean() - torch.log(1 - tmp_neg_pred + 1e-15).mean()
 
             # Aggiungi la loss alla lista dei risultati
@@ -276,6 +276,13 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
 
 
     pos_pred = torch.cat(pos_pred, dim=0)
+    neg_pred = torch.cat(neg_pred, dim=0)
+    accuracy, precision, recall = eval_metrics(pos_pred, neg_pred)
+    loss = sum(test_losses) / len(test_losses)
+    print(f"Accuracy {accuracy}, Precision {precision}, Recall {recall}, Loss {loss}")
+    return {"accuracy" : accuracy, "precision" : precision, "recall" : recall, "loss" : loss}
+
+    """ pos_pred = torch.cat(pos_pred, dim=0)
     neg_pred = torch.cat(neg_pred, dim=0)
     results = {}
     for K in [20, 50, 100]:
@@ -288,11 +295,10 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
         results[f'Hits@{K}'] = test_hits
 
 
-    return results, sum(test_losses) / len(test_losses)
+    return results, sum(test_losses) / len(test_losses) """
 
 
 if __name__ == "__main__":
-    
     """
         Dataset che contiene tutte le edu per in dato DAG.
         ID_DAG = ID_ELEMENTO_DATASET
@@ -311,20 +317,20 @@ if __name__ == "__main__":
         e la precisione nella fase training. Il parametro shuffle se impostato a True rimescola 
         i dati in ogni epoca. Tale funzionalità è utile per il training, ma non per il test.
     """
-    batch_size = 64
+    batch_size = 32
     train_emb_loader = DataLoader(train_edu, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     test_emb_loader = DataLoader(test_edu, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
 
-    model = GNNStack(input_dim=384, hidden_dim=384, output_dim=384, num_layers=4, dropout=0.6)
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=4, dropout=0.6)
+    model = GNNStack(input_dim=384, hidden_dim=384, output_dim=384, num_layers=3, dropout=0.6)
+    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=3, dropout=0.6)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-    train(model, 2, link_predictor, train_emb_loader, optimizer)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+    train(model, 50, link_predictor, train_emb_loader, optimizer)
 
-    evaluator = Evaluator(name = 'ogbl-collab')
+    evaluator = Evaluator(name = 'ogbl-collab') # https://ogb.stanford.edu/docs/linkprop/
+
     print(evaluator.expected_input_format) 
     print(evaluator.expected_output_format) 
 
-    results = test(model, 1, link_predictor, evaluator, test_emb_loader)
-    print(results)
+    test(model, 1, link_predictor, evaluator, test_emb_loader)
