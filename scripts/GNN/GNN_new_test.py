@@ -16,6 +16,26 @@ def n_dialogues(dataset_filename):
     return len(data)
 
 
+def save_models(model, link_predictor, path):
+    torch.save({
+        'model_state_dict': model.state_dict(),
+        'link_predictor_state_dict': link_predictor.state_dict()
+    }, path)
+    print(f"Modelli salvati in {path}")
+
+
+def load_models(path):
+    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
+    link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
+
+    checkpoint = torch.load(path, map_location=torch.device('cpu'))  # Usa 'cuda' se hai una GPU
+    model.load_state_dict(checkpoint['model_state_dict'])
+    link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
+
+    print(f"Modelli caricati da {path}")
+    return model, link_predictor
+
+
 def get_embs(embs_filename, dialogue_index):
     with open(embs_filename, 'r', encoding='utf-8') as file:
         data = json.load(file)[dialogue_index]
@@ -141,7 +161,7 @@ def train_worker(model, link_predictor, emb, edge_index, pos_train_edge, batch_s
     return train_losses[0]
 
 
-def test(dataset_filename, embs_filename, model, link_predictor, batch_size=100):
+def test(dataset_filename, embs_filename, model, link_predictor, batch_size=150):
     # model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
     # link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
 
@@ -168,9 +188,12 @@ def test(dataset_filename, embs_filename, model, link_predictor, batch_size=100)
     print(f'Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}')
 
 
-def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learning_rate=0.001):
-    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
-    link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
+def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
+    if model is None:
+        model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
+
+    if link_predictor is None:
+        link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=learning_rate)
 
@@ -204,11 +227,17 @@ def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learni
         epoch_loss = torch.stack(batch_losses).mean()
         print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
 
+        save_models(model, link_predictor, file_path)
+
     return model, link_predictor
 
 
 if __name__ == '__main__':
+    file_path = 'pretrained_models.pth'
+    trained_model, trained_link_predictor = load_models(file_path)
+
     trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json',
-                  '../../embeddings/MPNet/STAC_training_embeddings.json', num_epochs=2)
+        '../../embeddings/MPNet/STAC_training_embeddings.json', num_epochs=3, model=trained_model, link_predictor=trained_link_predictor)
+
     test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json', trained_model, trained_link_predictor)
 
