@@ -324,9 +324,10 @@ if __name__ == "__main__":
 
     model = GNNStack(input_dim=384, hidden_dim=384, output_dim=384, num_layers=3, dropout=0.6)
     link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=3, dropout=0.6)
+    # LinkPredictorMLP
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-    train(model, 50, link_predictor, train_emb_loader, optimizer)
+    optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
+    train(model, 100, link_predictor, train_emb_loader, optimizer)
 
     evaluator = Evaluator(name = 'ogbl-collab') # https://ogb.stanford.edu/docs/linkprop/
 
