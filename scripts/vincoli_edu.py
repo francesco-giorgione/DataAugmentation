@@ -2,6 +2,7 @@ import json
 from collections import Counter, defaultdict
 import matplotlib.pyplot as plt
 import networkx as nx
+from graph_builder import *
 
 
 def load_data(file_path):
@@ -94,34 +95,79 @@ def plot_top_edus(edu_list, dataset_name):
     plt.savefig(f"edus_analysis/{dataset_name}_top_edus.png")
     #lt.show()
 
+def get_subdialogue_list(data):
+
+    subdialogue_list = []
+
+    for i, dialogo in enumerate(data):
+        print(f"Creando il grafo per il dialogo {i + 1}...")
+        grafo = crea_grafo_da_json([dialogo])  # Passiamo il singolo dialogo come lista
+
+            # Convertire gli indici delle componenti connesse in EDUs
+        result = []
+        for nodo in grafo.nodes:
+            text = grafo.nodes[nodo]["text"]
+            result.append(text)
+        
+        subdialogue_list.append(result)
+    
+    return subdialogue_list
+
+
+def get_filepath(dataset_name):
+
+    if dataset_name == "STAC_training":
+        file_path = "dataset/STAC/train_subindex.json"
+    elif dataset_name == "MOLWENI_training":
+        file_path = "dataset/MOLWENI/train.json"
+    elif dataset_name == "MINECRAFT_training":
+        file_path = "dataset/MINECRAFT/TRAIN_307_bert.json"
+
+    elif dataset_name == "STAC_testing":
+        file_path = "dataset/STAC/test_subindex.json"
+    elif dataset_name == "MOLWENI_testing":
+        file_path = "dataset/MOLWENI/test.json"
+    elif dataset_name == "MINECRAFT_testing101":
+        file_path = "dataset/MINECRAFT/TEST_101_bert.json"
+    elif dataset_name == "MINECRAFT_testing133":
+        file_path = "dataset/MINECRAFT/TEST_133.json"
+
+    elif dataset_name == "MOLWENI_val":
+        file_path = "dataset/MOLWENI/dev.json"
+    elif dataset_name == "MINECRAFT_val32":
+        file_path = "dataset/MINECRAFT/DEV_32_bert.json"
+    elif dataset_name == "MINECRAFT_val100":
+        file_path = "dataset/MINECRAFT/VAL_100_bert.json"
+
+    return file_path
+
+
 def main():
     
-    dataset_name_list = ["STAC", "MOLWENI", "MINECRAFT"]
+    dataset_name_list = ["STAC_training", "MINECRAFT_training", "MOLWENI_training"]
 
     for dataset_name in dataset_name_list:
-        if dataset_name == "STAC":
-            file_path = "dataset/STAC/train_subindex.json"
-        elif dataset_name == "MOLWENI":
-            file_path = "dataset/MOLWENI/train.json"
-        else:
-            file_path = "dataset/MINECRAFT/TRAIN_307_bert.json"
+        file_path = get_filepath(dataset_name)
     
         data = load_data(file_path)
 
-        edus_lengths = get_all_edus_lengths(data)
+        # edus_lengths = get_all_edus_lengths(data)
         
-        edus_counter_list = get_edus_counter_list(data)
+        # edus_counter_list = get_edus_counter_list(data)
 
         
-        print(f"Numbero di EDUs del dataset " + dataset_name + f": {len(edus_lengths)}")
-        print(f"Lunghezza media delle EDU del dataset " + dataset_name + f": {sum(edus_lengths) / len(edus_lengths):.2f}")
-        print(f"Number of EDUs senza ripetizioni " + dataset_name + f": {len(edus_counter_list)}")
+        # print(f"Numbero di EDUs del dataset " + dataset_name + f": {len(edus_lengths)}")
+        # print(f"Lunghezza media delle EDU del dataset " + dataset_name + f": {sum(edus_lengths) / len(edus_lengths):.2f}")
+        # print(f"Number of EDUs senza ripetizioni " + dataset_name + f": {len(edus_counter_list)}")
         
-        print("Top 10 EDU più frequenti e relativa frequenza:")
-        print(edus_counter_list[:10])
+        # print("Top 10 EDU più frequenti e relativa frequenza:")
+        # print(edus_counter_list[:10])
 
 
-        plot_top_edus(edus_counter_list, dataset_name)
+        # plot_top_edus(edus_counter_list, dataset_name)
+
+        subdialogue_list = get_subdialogue_list(data)
+        print(subdialogue_list[:5])
 
 if __name__ == "__main__":
     main()

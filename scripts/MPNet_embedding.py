@@ -42,6 +42,7 @@ def save_embeddings(embeddings_edu_list, filename):
 
     with open(filename, 'w', encoding='utf-8') as f:
         json.dump(data_json, f)
+
         
 
 def main():
@@ -50,31 +51,11 @@ def main():
     #                      "STAC_testing", "MOLWENI_testing", "MINECRAFT_testing101", "MINECRAFT_testing133",
     #                      "MOLWENI_val", "MINECRAFT_val32", "MINECRAFT_val100"]
 
-    dataset_name_list = ["STAC_training", "STAC_testing"]
+    dataset_name_list = ["MINECRAFT_training", "MINECRAFT_testing133"]
 
     for dataset_name in dataset_name_list:
-        if dataset_name == "STAC_training":
-            file_path = "dataset/STAC/train_subindex.json"
-        elif dataset_name == "MOLWENI_training":
-            file_path = "dataset/MOLWENI/train.json"
-        elif dataset_name == "MINECRAFT_training":
-            file_path = "dataset/MINECRAFT/TRAIN_307_bert.json"
-
-        elif dataset_name == "STAC_testing":
-            file_path = "dataset/STAC/test_subindex.json"
-        elif dataset_name == "MOLWENI_testing":
-            file_path = "dataset/MOLWENI/test.json"
-        elif dataset_name == "MINECRAFT_testing101":
-            file_path = "dataset/MINECRAFT/TEST_101_bert.json"
-        elif dataset_name == "MINECRAFT_testing133":
-            file_path = "dataset/MINECRAFT/TEST_133.json"
-
-        elif dataset_name == "MOLWENI_val":
-            file_path = "dataset/MOLWENI/dev.json"
-        elif dataset_name == "MINECRAFT_val32":
-            file_path = "dataset/MINECRAFT/DEV_32_bert.json"
-        elif dataset_name == "MINECRAFT_val100":
-            file_path = "dataset/MINECRAFT/VAL_100_bert.json"
+        
+        file_path = get_filepath(dataset_name)
 
         data = load_data(file_path)
 
