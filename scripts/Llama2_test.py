@@ -164,8 +164,8 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     Relationships:
     {subgraph_relationships_text}
 
-    If EDU{remapped_missing_edu+1} is removed:
-    Generate a new EDU that logically replaces EDU{remapped_missing_edu+1}:
+    EDU{remapped_missing_edu+1} is removed.
+    Generate a new EDU that logically replaces it:
 
     """
 
