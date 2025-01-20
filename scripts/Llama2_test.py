@@ -146,10 +146,10 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     Relationship: [EDU1] -> [EDU2]: Cause-Effect.
 
     If EDU1 is removed:
-    Generate: 'The weather looks gloomy, which might indicate rain.'
+    Generate the missing EDU that preserves its relationships with all connected EDUs: 'The weather looks gloomy, which might indicate rain.'
 
     If EDU2 is removed:
-    Generate: 'The overcast sky suggests possible precipitation.'
+    Generate the missing EDU that preserves its relationships with all connected EDUs: 'The overcast sky suggests possible precipitation.'
 
     ---
 
