@@ -141,27 +141,27 @@ def generate_precise_prompt(edus, relationships, missing_edu):
       - Preserve all semantic relationships involving the missing EDU.
 
     ### Example:
-    Subgraph EDUs:
-    EDU1: 'The sky is overcast.'
-    EDU2: 'It might rain later.'
+    Input EDUs:
+    EDU1: 'how is the sky?'
+    EDU2: 'The sky is overcast.'
+    EDU3: 'It might rain later.'
 
-    Subgraph Relationships:
-    [EDU1] -> [EDU2]: Cause-Effect.
+    Relationships:
+    [EDU1] -> [EDU2]: Question_answer_pair
+    [EDU2] -> [EDU3]: Comment.
 
-    If EDU1 is removed:
-    Generate a new EDU that logically replaces EDU1: 'The weather looks gloomy, which might indicate rain.'
+    The removed EDU is the EDU that appairs in all relations specified in relationships
 
-    If EDU2 is removed:
-    Generate a new EDU that logically replaces EDU2: 'The overcast sky suggests possible precipitation.'
+    EDU2 is removed. Generate a new EDU that logically replaces it: 'The weather looks gloomy, which might indicate rain.'
 
     ---
 
     Now, process the following graph:
 
-    Subgraph EDUs:
+    Input EDUs:
     {subgraph_edus_text}
 
-    Subgraph Relationships:
+    Relationships:
     {subgraph_relationships_text}
 
     If EDU{remapped_missing_edu+1} is removed:
@@ -246,26 +246,3 @@ if __name__ == '__main__':
             print("Error occurred:")
             print(e)
 
-
-    # # prompt = 'I liked "Breaking Bad" and "Band of Brothers". Do you have any recommendations of other shows I might like?\n'
-    # edus = ["how do i undo the things that easy ubuntu has done ? : o", "for security upgrades and the like ?"]
-    # relationships = [{"source": "EDU1", "target": "EDU2", "relation": "Clarification_question"}]
-    # missing_edu = "EDU1"
-
-    # prompt = generate_precise_prompt(edus, relationships, missing_edu)
-
-    # print(prompt)
-
-    # print('Producing response...')
-    # # response = get_response(prompt)
-    # # print(response)
-
-    # try:
-    #     response = get_response(prompt)
-    #     print("Pipeline executed successfully.")
-    #     print(response)
-    #     generated_edu = extract_generated_edu(response, missing_edu)
-    #     print(generated_edu)
-    # except Exception as e:
-    #     print("Error occurred:")
-    #     print(e)
