@@ -47,7 +47,7 @@ def get_response(input):
         top_k=40,  # Considera solo i 40 token più probabili
         num_return_sequences=1,
         eos_token_id=tokenizer.eos_token_id,
-        max_length= 500,
+        max_new_tokens= 300,
         # truncation = True
     )
 
@@ -81,6 +81,9 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     remapped_relationships = [
         (edu_id_map[rel[0]], edu_id_map[rel[1]], rel[2]) for rel in subgraph_relationships
     ]
+
+    # Rimappa l'indice di `missing_edu`
+    remapped_missing_edu = edu_id_map[missing_edu]
 
     # Crea il testo per le EDUs del sottografo
     subgraph_edus_text = "\n".join(
@@ -158,7 +161,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     Subgraph Relationships:
     {subgraph_relationships_text}
 
-    If EDU{missing_edu+1} is removed:
+    If EDU{remapped_missing_edu+1} is removed:
     Generate:
     """
 
