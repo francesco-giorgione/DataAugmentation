@@ -126,8 +126,9 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     # Prompt dettagliato
     prompt = f"""
     You are a language model trained to analyze and generate discourse units (EDUs).
-    Your task is to ensure that the semantic relationships between EDUs in a graph are preserved, even when one EDU is removed.
-    When one EDU is removed, you must generate a new EDU that replaces the missing one while maintaining all original relationships in the graph.
+    Your task is to ensure that the semantic relationships between EDUs in a graph are preserved,
+    even when one EDU is removed. When one EDU is removed, you must generate a new EDU that replaces
+    the removed one while maintaining all original relationships in the graph.
 
     {relationship_types_text}
 
@@ -140,16 +141,18 @@ def generate_precise_prompt(edus, relationships, missing_edu):
       - Preserve all semantic relationships involving the missing EDU.
 
     ### Example:
-    Input:
+    Subgraph EDUs:
     EDU1: 'The sky is overcast.'
     EDU2: 'It might rain later.'
-    Relationship: [EDU1] -> [EDU2]: Cause-Effect.
+
+    Subgraph Relationships:
+    [EDU1] -> [EDU2]: Cause-Effect.
 
     If EDU1 is removed:
-    Generate: 'The weather looks gloomy, which might indicate rain.'
+    Generate a new EDU that logically replaces EDU1: 'The weather looks gloomy, which might indicate rain.'
 
     If EDU2 is removed:
-    Generate: 'The overcast sky suggests possible precipitation.'
+    Generate a new EDU that logically replaces EDU2: 'The overcast sky suggests possible precipitation.'
 
     ---
 
@@ -162,7 +165,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     {subgraph_relationships_text}
 
     If EDU{remapped_missing_edu+1} is removed:
-    Generate:
+    Generate a new EDU that logically replaces EDU{remapped_missing_edu+1}:
 
     """
 
