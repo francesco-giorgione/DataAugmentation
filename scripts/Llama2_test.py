@@ -162,7 +162,9 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     {subgraph_relationships_text}
 
     If EDU{remapped_missing_edu+1} is removed:
-    Generate the missing EDU that preserves its relationships with all connected EDUs:
+    Generate a new EDU to replace EDU{remapped_missing_edu+1}. The new EDU must maintain all the original semantic
+    relationships of EDU{remapped_missing_edu+1} with the remaining EDUs.
+
     """
 
     return prompt, remapped_missing_edu
