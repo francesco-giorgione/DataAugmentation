@@ -162,10 +162,10 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     {subgraph_relationships_text}
 
     If EDU{remapped_missing_edu+1} is removed:
-    Generate:
+    Generate the missing EDU that preserves its relationships with all connected EDUs:
     """
 
-    return prompt
+    return prompt, remapped_missing_edu
 
 
 
@@ -224,7 +224,7 @@ if __name__ == '__main__':
 
         missing_edu = target_node
 
-        prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+        prompt, remapped_missing_edu = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
         print(prompt)
 
@@ -233,7 +233,7 @@ if __name__ == '__main__':
             response = get_response(prompt)
             print("Pipeline executed successfully.")
             print(response)
-            generated_edu = extract_generated_edu(response, missing_edu)
+            generated_edu = extract_generated_edu(response, remapped_missing_edu+1)
             print(generated_edu)
         except Exception as e:
             print("Error occurred:")
