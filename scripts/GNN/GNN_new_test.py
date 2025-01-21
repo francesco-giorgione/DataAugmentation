@@ -1,5 +1,6 @@
 import json
 import torch
+from statistics import mean
 from torch_geometric.utils import negative_sampling
 from torch_geometric.loader import DataLoader
 import torch.nn.functional as F
@@ -201,7 +202,7 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
                 dialogue_losses.append(train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer))
 
             batch_loss = torch.stack(dialogue_losses).mean()
-            batch_losses.append(batch_loss)
+            batch_losses.append(batch_loss.item())
 
             optimizer.zero_grad()
             batch_loss.backward()
@@ -210,7 +211,8 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
             print(f"Epoch {epoch+1}/{num_epochs}, Batch {batch_index} -> Batch training Loss: {batch_loss:.4f}")
 
         print(f'Num batch in epoch {epoch}: {batch_index}')
-        epoch_loss = torch.stack(batch_losses).mean()
+        # epoch_loss = torch.stack(batch_losses).mean()
+        epoch_loss = mean(batch_losses)
         loss_history.append(epoch_loss)
         print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
 
@@ -221,26 +223,20 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
 
 
 def predict_worker(dialogue_json, old_embs, target_node, new_edu, new_edu_emb, model, link_predictor, threshold=0.5):
+    new_embs = old_embs
+    new_embs[target_node] = new_edu_emb
+
     edge_index = super_new_get_edges([dialogue_json], 0)
-    data = Data(x=old_embs, edge_index=edge_index)   # (N, d)
-    node_embs = model(data)
-
-    print('node_embs:', node_embs)
-    node_embs[target_node] = new_edu_emb
-    print('node_embs:', node_embs)
-
-    # node_embs[target_node]['edu'] = new_edu
-    # node_embs[target_node]['embedding'] = new_edu_emb
     removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
 
+    # print('Target node', target_node)
+    # print('Edge index', edge_index)
+    # print('Removed index', removed_edge_index)
+    # print('Filtered index', filtered_edge_index)
 
-
-
-    # new_embs = torch.tensor([item['embedding'] for item in old_embs], dtype=torch.float)
-
-    print('Edge index', edge_index)
-    print('Removed index', removed_edge_index)
-    print('Filtered index', filtered_edge_index)
+    data = Data(x=new_embs, edge_index=filtered_edge_index)   # (N, d)
+    node_embs = model(data)
+    get_all_rels(dialogue_json, old_embs)
 
 
 def predict(dataset_filename, embs_filename, model, link_predictor):
@@ -254,7 +250,7 @@ def predict(dataset_filename, embs_filename, model, link_predictor):
         torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
         target_node=0,
         new_edu='new_edu',
-        new_edu_emb=torch.tensor([0,1], dtype=torch.float),
+        new_edu_emb=torch.tensor([i for i in range(768)], dtype=torch.float),
         model=model,
         link_predictor=link_predictor
     )
@@ -269,7 +265,7 @@ if __name__ == '__main__':
     
     # test('../../dataset/MINECRAFT/TEST_133.json', '../../embeddings/MPNet/MINECRAFT_testing133_embeddings.json', trained_model, trained_link_predictor)
 
-    validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
+    # validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
     # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
