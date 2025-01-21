@@ -130,8 +130,6 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     even when one EDU is removed. When one EDU is removed, you must generate a new EDU that replaces
     the removed one while maintaining all original relationships in the graph.
 
-    {relationship_types_text}
-
     ### Rules:
     1. Each EDU represents a single, coherent idea.
     2. Relationships between EDUs are defined in the format: [EDU1] -> [EDU2]: <Relation>.
@@ -140,6 +138,8 @@ def generate_precise_prompt(edus, relationships, missing_edu):
         The new EDU must be a direct paraphrase of the removed one and should preserve all its semantic relationships.
       - Ensure the generated EDU fits naturally with all connected EDUs.
       - Preserve all semantic relationships involving the missing EDU.
+
+    {relationship_types_text}
 
     ### Example:
     Input EDUs:
@@ -153,7 +153,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     The removed EDU is the EDU that appears in all relations specified in relationships
 
-    EDU2 is removed. Generate a new EDU that logically replaces only it: 'The weather looks gloomy, which might indicate rain.'
+    EDU2 is removed. Generate a new EDU that logically replaces only EDU2: 'The weather looks gloomy, which might indicate rain.'
 
     ---
 
@@ -166,7 +166,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     {subgraph_relationships_text}
 
     EDU{remapped_missing_edu+1} is removed.
-    Generate a new EDU that logically replaces only it:
+    Generate a new EDU that logically replaces only EDU{remapped_missing_edu+1}:
 
     """
 

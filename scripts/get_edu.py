@@ -92,7 +92,7 @@ def get_subgraph(target_node, graph):
         subgraph = graph.subgraph(all_relevant_nodes)
         
         # Visualizza il sottografo
-        visualizza_grafo_dag(subgraph, 1)
+        # visualizza_grafo_dag(subgraph, 1)
 
         # Stampa i nodi e gli archi del grafo
         print("Nodi nel grafo:", graph.nodes())
