@@ -44,7 +44,7 @@ def get_response(input):
         do_sample=True,
         top_p=0.5,
         temperature=0.7,  # Controlla la casualità
-        top_k=40,  # Considera solo i 40 token più probabili
+        #top_k=40,  # Considera solo i 40 token più probabili
         num_return_sequences=1,
         eos_token_id=tokenizer.eos_token_id,
         max_new_tokens= 300,
@@ -125,17 +125,18 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     # Prompt dettagliato
     prompt = f"""
-    You are a language model trained to analyze and generate discourse units (EDUs).
-    Your task is to ensure that the semantic relationships between EDUs in a graph are preserved,
-    even when one EDU is removed. When one EDU is removed, you must generate a new EDU that replaces
-    the removed one while maintaining all original relationships in the graph.
+    When one EDU is removed, you must generate a new EDU that replaces the removed one. The new EDU must be a strict 
+    paraphrase of the removed EDU, without referencing, modifying, or inferring any details from the other EDUs. The
+    relationships between EDUs will remain implicitly preserved without needing to be explicitly mentioned in the generated EDU.
 
     ### Rules:
     1. Each EDU represents a single, coherent idea.
     2. Relationships between EDUs are defined in the format: [EDU1] -> [EDU2]: <Relation>.
     3. When an EDU is removed:
-      - Generate a new EDU that logically replaces the removed EDU without including or modifying any of the other EDUs. 
-        The new EDU must be a direct paraphrase of the removed one and should preserve all its semantic relationships.
+      - Generate a new EDU that is strictly a paraphrase of the removed EDU. 
+        The new EDU must only contain information present in the removed EDU 
+        and must not introduce, modify, or infer any details from other EDUs 
+        in the graph. Do not include any content from EDUs before or after it.
       - Ensure the generated EDU fits naturally with all connected EDUs.
       - Preserve all semantic relationships involving the missing EDU.
 
@@ -208,7 +209,7 @@ if __name__ == '__main__':
         data = load_data(file_path)
 
         # Farlo per ogni dialogo del dataset
-        graph = crea_grafo_da_json([data[0]])
+        graph = crea_grafo_da_json([data[1]])
 
         # Aggiungere metodo di scelta nodo da sostituire
         target_node = random.choice(list(graph.nodes))
