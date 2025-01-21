@@ -6,7 +6,10 @@ from vincoli_edu import *
 import random
 
 
-client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
+client = OpenAI(api_key="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")
+
+# Usando l'API gpt4-all
+# client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
 
 
 def get_response(prompt):
@@ -35,7 +38,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     # Filtra le EDUs e le relazioni basandosi sui nodi correlati
     subgraph_edus = [edu for edu in edus if edu[0] in related_edus_ids]
     subgraph_relationships = [
-        rel for rel in relationships if rel[0] in related_edus_ids and rel[1] in related_edus_ids
+        rel for rel in related_relationships if rel[0] == missing_edu or rel[1] == missing_edu
     ]
     
     # Mappa vecchi indici delle EDUs in nuovi indici
@@ -140,7 +143,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
 if __name__ == '__main__':
 
-    dataset_name_list = ["MINECRAFT_training"]
+    dataset_name_list = ["STAC_training"]
 
     for dataset_name in dataset_name_list:
         file_path = get_filepath(dataset_name)
