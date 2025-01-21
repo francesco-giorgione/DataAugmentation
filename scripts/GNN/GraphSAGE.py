@@ -1,4 +1,7 @@
 import os
+from statistics import mean
+from matplotlib import pyplot as plt
+import matplotlib.ticker as mtick
 import torch
 import torch_geometric
 import torch.nn as nn
@@ -11,7 +14,7 @@ from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from GNN_new_test import save_models
+from utils import save_models
 
 
 
@@ -148,6 +151,30 @@ class LinkPredictor(nn.Module):
         return torch.sigmoid(x)
 
 
+
+
+def plot_loss(loss_history, num_epochs, path, desc="Loss"):
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(1, num_epochs+1), loss_history, color='red', label='Training Loss')
+    plt.title(desc)
+    plt.ylabel('Loss')
+    plt.xlabel('Epochs')
+    plt.xticks(range(1, num_epochs+1))
+    
+    # Calcolo del margine aggiuntivo (ad esempio il 10% sopra e sotto i valori min/max)
+    min_loss = min(loss_history)
+    max_loss = max(loss_history)
+    margin = (max_loss - min_loss) * 0.1 + 2
+    plt.ylim(min_loss - margin, max_loss + margin)
+    
+    # Formatta i numeri dell'asse y con due cifre decimali
+    plt.gca().yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
+    
+    plt.margins(0.05)
+    plt.tight_layout()
+    plt.savefig(path)
+
+
 def eval_metrics(pos_test_pred, neg_test_pred, threshold = 0.5):
     print(f"pos_test_pred: {pos_test_pred}")
     print(f"neg_test_pred: {neg_test_pred}")
@@ -165,13 +192,16 @@ def eval_metrics(pos_test_pred, neg_test_pred, threshold = 0.5):
     return accuracy, precision, recall
 
 
-def train(model, num_epochs, link_predictor, train_loader, optimizer):
+def train(model, num_epochs, link_predictor, train_loader, optimizer, path, desc):
     model.train()
     link_predictor.train()
+    
     train_losses = []
 
     with tqdm(total=num_epochs, desc="Training") as progress_bar:
         for epoch in range(num_epochs):
+            batch_losses = []
+
             for i, batch in enumerate(train_loader):
                 # print(f"Epoch: {epoch}, batch {i}")
                 optimizer.zero_grad()
@@ -185,7 +215,7 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
 
                 # Passa le embedding e gli archi attraverso il modello
                 node_emb = model(node_emb, edge_index)  # (N, d)
-                # print(edge_index)
+                
 
                 
                 """
@@ -237,15 +267,19 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
 
                 # Aggiungi la loss alla lista dei risultati
                 # print(f"Loss: {loss.item()}")
-                train_losses.append(loss.item())
+                batch_losses.append(loss.item())
         
+
+            train_losses.append(mean(batch_losses))
             progress_bar.update(1)
             progress_bar.set_postfix({'Loss': loss.item()})
+
+    plot_loss(train_losses, num_epochs, path, desc)
 
     return sum(train_losses) / len(train_losses)
 
 
-def test(model, num_epochs, link_predictor, test_loader, threshold):
+def test(model, num_epochs, link_predictor, test_loader, threshold, path, desc):
     model.eval()
     link_predictor.eval()
     test_losses = []
@@ -300,6 +334,7 @@ def test(model, num_epochs, link_predictor, test_loader, threshold):
             progress_bar.set_postfix({'Loss': loss.item()})
 
 
+    plot_loss(test_losses, len(test_loader), path, desc)
     pos_pred = torch.cat(pos_pred, dim=0)
     neg_pred = torch.cat(neg_pred, dim=0)
     accuracy, precision, recall = eval_metrics(pos_pred, neg_pred, threshold=threshold)
@@ -340,14 +375,14 @@ if __name__ == "__main__":
         Dataset che contiene tutte le edu per in dato DAG.
         ID_DAG = ID_ELEMENTO_DATASET
     """
-    """ train_edu = CustomEduDataset(
+    train_edu = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_training_embeddings.json',
         edges_path='dataset/STAC/train_subindex.json'
     )
     test_edu = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_testing_embeddings.json',
         edges_path='dataset/STAC/test_subindex.json'
-    ) """
+    )
 
     """ train_edu = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
@@ -356,16 +391,18 @@ if __name__ == "__main__":
     test_edu = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
         edges_path='dataset/MINECRAFT/TEST_133.json'
-    ) """
+    )
+    """
 
-    train_edu = CustomEduDataset(
+    """ train_edu = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
         edges_path='dataset/MOLWENI/train.json'
     )
     test_edu = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
         edges_path='dataset/MOLWENI/test.json'
-    )
+    ) """
+
 
     """
         Il DataLoader gestisce la divisione del dataset in batch, per migliorare l'efficienza 
@@ -382,12 +419,12 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
     # model, link_predictor = load_models("pretrain_model/Molweni_30epc_3l_pretrained_models.pth", num_layers = 3)
-    train(model, 30, link_predictor, train_emb_loader, optimizer)
+    train(model, 30, link_predictor, train_emb_loader, optimizer, path="plot_loss/GS_train.png", desc= "MOLWENI Training Loss")
     
-    save_models(model, link_predictor, 'pretrain_model/Molweni_30epc_3l_pretrained_models.pth')
+    save_models(model, link_predictor, 'pretrain_model/MOLWENI_30epc_3l_pretrained_models.pth')
 
     """ evaluator = Evaluator(name = 'ogbl-collab') # https://ogb.stanford.edu/docs/linkprop/
 
     print(evaluator.expected_input_format) 
     print(evaluator.expected_output_format)  """
-    test(model, 1, link_predictor, test_emb_loader, threshold=0.5)
+    test(model, 1, link_predictor, test_emb_loader, threshold=0.5, path="plot_loss/GS_test.png", desc= "MOLWENI Testing Loss")
