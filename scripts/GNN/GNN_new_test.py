@@ -50,8 +50,10 @@ def test_worker(model, predictor, emb, edge_index, pos_test_edge):
         neg_test_preds += [predictor(node_emb[edge[0]], node_emb[edge[1]]).cpu()]
     neg_test_pred = torch.cat(neg_test_preds, dim=0)
 
+    loss = -torch.log(pos_test_pred + 1e-15).mean() - torch.log(1 - neg_test_pred + 1e-15).mean()
+
     print(f'pos test pred {pos_test_pred}\nneg test pred {neg_test_pred}')
-    return eval_metrics(pos_test_pred, neg_test_pred)
+    return loss.item(), pos_test_pred, neg_test_pred
 
 
 def train_worker(model, link_predictor, emb, edge_index, pos_train_edge, batch_size, optimizer):
@@ -103,8 +105,9 @@ def train_worker(model, link_predictor, emb, edge_index, pos_train_edge, batch_s
     return train_losses[0]
 
 
-def test(dataset_filename, embs_filename, model, link_predictor, batch_size=1000):
+def old_test(dataset_filename, embs_filename, model, link_predictor, batch_size=1000):
     total_accuracy, total_precision, total_recall = 0, 0, 0
+    batch_losses = []
 
     all_dialogues = load_data(dataset_filename)
     all_embs = load_data(embs_filename)
@@ -127,6 +130,42 @@ def test(dataset_filename, embs_filename, model, link_predictor, batch_size=1000
     precision = total_precision / num_samples
     recall = total_recall / num_samples
     print(f'Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
+
+
+def test(dataset_filename, embs_filename, model, link_predictor, batch_size=50):
+    total_accuracy, total_precision, total_recall = 0, 0, 0
+    pos_preds, neg_preds = [], []
+    batch_losses = []
+
+    all_dialogues = load_data(dataset_filename)
+    all_embs = load_data(embs_filename)
+    n = len(all_dialogues)
+    num_samples = min(batch_size, n)
+    sampled_dialogues = random.sample(range(n), num_samples)
+
+    for i_batch, sampled_dialogues in enumerate(DataLoader([i for i in range(n)], batch_size=batch_size, shuffle=True), start=1):
+        dialogue_losses = []
+
+        for dialogue_index in sampled_dialogues:
+            embs = torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float)
+            edge_index = super_new_get_edges(all_dialogues, dialogue_index)
+
+            print(f'[Testing] Sampled dialogue {dialogue_index}')
+            curr_loss, curr_pos_pred, curr_neg_pred = test_worker(model, link_predictor, embs, edge_index, edge_index)
+            print(f'[Batch {i_batch}] Loss: {curr_loss}')
+
+            pos_preds.append(curr_pos_pred)
+            neg_preds.append(curr_neg_pred)
+            dialogue_losses.append(curr_loss)
+
+        batch_losses.append(mean(dialogue_losses))
+
+    pos_preds = torch.cat(pos_preds, dim=0)
+    neg_preds = torch.cat(neg_preds, dim=0)
+    accuracy, precision, recall = eval_metrics(pos_preds, neg_preds)
+    print(f'Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}')
+
+
 
 
 def validate(dataset_filename, embs_filename, model, link_predictor, threshold=0.5):
@@ -261,10 +300,10 @@ if __name__ == '__main__':
     file_path = 'pretrained_models_STAC.pth'
     trained_model, trained_link_predictor = load_models(file_path)
 
-    trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json', 
-                        "../../embeddings/MPNet/STAC_training_embeddings.json", "plot_loss/GAT_STAC_train.png", "STAC Training Loss", num_epochs=2, model=None, link_predictor=None)
+    # trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json',
+    #                     "../../embeddings/MPNet/STAC_training_embeddings.json", "plot_loss/GAT_STAC_train.png", "STAC Training Loss", num_epochs=2, model=None, link_predictor=None)
     
-    # test('../../dataset/MINECRAFT/TEST_133.json', '../../embeddings/MPNet/MINECRAFT_testing133_embeddings.json', trained_model, trained_link_predictor)
+    test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json', trained_model, trained_link_predictor)
 
     # validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
