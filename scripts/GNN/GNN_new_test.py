@@ -7,7 +7,7 @@ from torch_geometric.data import Data
 from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictorMLP
 import random
 from utils import *
-
+from GraphSAGE import plot_loss
 
 
 
@@ -172,7 +172,7 @@ def validate(dataset_filename, embs_filename, model, link_predictor, threshold=0
           f'({(total_correct_predictions / total_predictions) * 100:.2f}%)')
 
 
-def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
+def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
     if model is None:
         model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
 
@@ -184,6 +184,7 @@ def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learni
     all_dialogues = load_data(dataset_filename)
     all_embs = load_data(embs_filename)
     n = len(all_dialogues)
+    loss_history = []
 
     for epoch in range(num_epochs):
         batch_losses = []
@@ -210,10 +211,12 @@ def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learni
 
         print(f'Num batch in epoch {epoch}: {batch_index}')
         epoch_loss = torch.stack(batch_losses).mean()
+        loss_history.append(epoch_loss)
         print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
 
         save_models(model, link_predictor, file_path)
 
+    plot_loss(loss_history, num_epochs, loss_path, loss_desc)
     return model, link_predictor
 
 
@@ -258,12 +261,12 @@ def predict(dataset_filename, embs_filename, model, link_predictor):
 
 
 if __name__ == '__main__':
-    file_path = 'pretrained_models_MOLWENI.pth'
+    file_path = 'pretrained_models_STAC.pth'
     trained_model, trained_link_predictor = load_models(file_path)
 
-    # trained_model, trained_link_predictor = train('../../dataset/MOLWENI/train.json',
-    #     '../../embeddings/MPNet/MOLWENI_training_embeddings.json', num_epochs=10, model=trained_model, link_predictor=trained_link_predictor)
-    #
+    trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json', 
+                        "../../embeddings/MPNet/STAC_training_embeddings.json", "plot_loss/GAT_STAC_train.png", "STAC Training Loss", num_epochs=2, model=None, link_predictor=None)
+    
     # test('../../dataset/MINECRAFT/TEST_133.json', '../../embeddings/MPNet/MINECRAFT_testing133_embeddings.json', trained_model, trained_link_predictor)
 
     validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
