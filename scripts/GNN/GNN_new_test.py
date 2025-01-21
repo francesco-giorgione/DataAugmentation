@@ -132,7 +132,7 @@ def old_test(dataset_filename, embs_filename, model, link_predictor, batch_size=
     print(f'Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
 
 
-def test(dataset_filename, embs_filename, model, link_predictor, batch_size=50):
+def test(dataset_filename, embs_filename, loss_path, loss_desc, model, link_predictor, batch_size=50):
     total_accuracy, total_precision, total_recall = 0, 0, 0
     pos_preds, neg_preds = [], []
     batch_losses = []
@@ -164,7 +164,7 @@ def test(dataset_filename, embs_filename, model, link_predictor, batch_size=50):
     neg_preds = torch.cat(neg_preds, dim=0)
     accuracy, precision, recall = eval_metrics(pos_preds, neg_preds)
     print(f'Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}')
-
+    plot_loss(batch_losses, len(batch_losses), loss_path, loss_desc)
 
 
 
@@ -313,16 +313,22 @@ def predict(dataset_filename, embs_filename, model, link_predictor, target_node=
 
 if __name__ == '__main__':
     file_path = 'pretrained_models_MOLWENI.pth'
-    trained_model, trained_link_predictor = load_models(file_path)
+    # trained_model, trained_link_predictor = load_models(file_path)
 
-    # trained_model, trained_link_predictor = train('../../dataset/STAC/train_subindex.json',
-    #                     "../../embeddings/MPNet/STAC_training_embeddings.json", "plot_loss/GAT_STAC_train.png", "STAC Training Loss", num_epochs=2, model=None, link_predictor=None)
+    trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json', 
+                        "embeddings/MPNet/MOLWENI_training_embeddings.json", "plot_loss/GAT_MOLWENI_train.png", "MOLWENI Training Loss", num_epochs=60, model=None, link_predictor=None)
     
-    # test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json', trained_model, trained_link_predictor)
+    test('dataset/MOLWENI/test.json', 'embeddings/MPNet/MOLWENI_testing_embeddings.json', 
+            "plot_loss/GAT_MOLWENI_test.png", "MOLWENI Testing Loss", trained_model, trained_link_predictor)
+    
+    """ test('dataset/STAC/test_subindex.json', 'embeddings/MPNet/STAC_testing_embeddings.json', 
+            "plot_loss/GAT_STAC_test.png", "STAC Testing Loss", trained_model, trained_link_predictor) """
 
     # validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
-    predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
+    # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
+
+    # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
 
 
