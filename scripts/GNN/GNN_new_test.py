@@ -222,6 +222,7 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
     return model, link_predictor
 
 
+
 def predict_worker(dialogue_json, old_embs, target_node, new_edu, new_edu_emb, model, link_predictor, threshold=0.5):
     new_embs = old_embs
     new_embs[target_node] = new_edu_emb
