@@ -1,58 +1,26 @@
-from transformers import LlamaTokenizer, LlamaForCausalLM
-import transformers
+from openai import OpenAI
 import torch
 import re
 from get_edu import *
 from vincoli_edu import *
 import random
 
-model_name = "meta-llama/Llama-2-7b-chat-hf"
 
-HUGGINGFACE_TOKEN = "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"
+client = OpenAI(api_key="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")
 
-# Caricamento tokenizer e modello
-tokenizer = LlamaTokenizer.from_pretrained(model_name, token=HUGGINGFACE_TOKEN)
-
-model = LlamaForCausalLM.from_pretrained(
-    model_name,
-    torch_dtype=torch.float16, # Usa float32 per CPU (o float16 per GPU)
-    device_map='auto',
-    token=HUGGINGFACE_TOKEN  # Autenticazione con il token
-)
-
-# Creazione del pipeline
-pipeline = transformers.pipeline(
-    "text-generation",
-    model=model,
-    tokenizer=tokenizer
-)
+# Usando l'API gpt4-all
+# client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
 
 
-# Funzione per generare una risposta
-def get_response(input):
+def get_response(prompt):
 
-    # input_ids = tokenizer.encode(
-    #     input,
-    #     return_tensors='pt'
-    # )
-
-    # # Maschera di attention che fa in modo che solo i token reali vengano considerati (token di padding scartati)
-    # attention_mask = torch.ones(input_ids.shape, device=input_ids.device)
-
-    sequences = pipeline(
-        input,
-        do_sample=True,
-        top_p=0.3,
-        temperature=0.5,  # Controlla la casualità
-        num_return_sequences=1,
-        eos_token_id=tokenizer.eos_token_id,
-        max_new_tokens= 300,
-        # truncation = True
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}],
+        stream=False,
     )
 
-    print(sequences)
-
-    return [seq['generated_text'] for seq in sequences]
+    return response
 
 
 
@@ -70,7 +38,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     # Filtra le EDUs e le relazioni basandosi sui nodi correlati
     subgraph_edus = [edu for edu in edus if edu[0] in related_edus_ids]
     subgraph_relationships = [
-        rel for rel in relationships if rel[0] in related_edus_ids and rel[1] in related_edus_ids
+        rel for rel in related_relationships if rel[0] == missing_edu or rel[1] == missing_edu
     ]
     
     # Mappa vecchi indici delle EDUs in nuovi indici
@@ -170,32 +138,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     """
 
-    # a new EDU to replace EDU{remapped_missing_edu+1}. The new EDU must maintain all the original semantic
-    # relationships of EDU{remapped_missing_edu+1} with the remaining EDUs:
-
-    return prompt, remapped_missing_edu
-
-
-
-# Funzione per estrarre l'EDU generata per un'EDU specifica rimossa
-def extract_generated_edu(response, removed_edu):
-    # Pattern per catturare solo la parte dopo "Now, process the following input"
-    main_section_pattern = r"Now, process the following input:(.*)"
-
-    for text in response:
-        # Trova solo la parte rilevante del prompt
-        main_section_match = re.search(main_section_pattern, text, re.DOTALL)
-        if main_section_match:
-            main_section = main_section_match.group(1)
-
-            # Cerca il testo generato per la EDU mancante
-            edu_pattern = rf"If {removed_edu} is removed:\s*Generate:\s*(.*?)(?=\n\n)"
-            edu_match = re.search(edu_pattern, main_section, re.DOTALL)
-
-            if edu_match:
-                return edu_match.group(1).strip()
-
-    return None
+    return prompt
 
 
 if __name__ == '__main__':
@@ -232,7 +175,7 @@ if __name__ == '__main__':
 
         missing_edu = target_node
 
-        prompt, remapped_missing_edu = generate_precise_prompt(edus_list, relations_list, missing_edu)
+        prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
         print(prompt)
 
@@ -240,10 +183,7 @@ if __name__ == '__main__':
             print('Producing response...')
             response = get_response(prompt)
             print("Pipeline executed successfully.")
-            print(response)
-            generated_edu = extract_generated_edu(response, remapped_missing_edu+1)
-            print(generated_edu)
+            print(response.choices[0].message.content)
         except Exception as e:
             print("Error occurred:")
             print(e)
-
