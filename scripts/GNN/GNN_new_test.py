@@ -1,162 +1,14 @@
 import json
 import torch
 from torch_geometric.utils import negative_sampling
-# from torch.utils.data import DataLoader
 from torch_geometric.loader import DataLoader
 import torch.nn.functional as F
 from torch_geometric.data import Data
 from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictorMLP
 import random
-from sklearn.metrics import accuracy_score, precision_score, recall_score
-from torch.utils.data import Dataset
+from utils import *
 
 
-class CustomEduDataset(Dataset):
-    def __init__(self, embeddings_path, edges_path):
-        # Embeddings dell'edu
-        with open(embeddings_path, 'r', encoding='utf-8') as file:
-            self.all_edu = json.load(file)
-
-        # Apertura di tutto il DAG
-        with open(edges_path, 'r', encoding='utf-8') as file:
-            self.all_dag = json.load(file)
-
-        # Numero di nodi massimo
-        self.max_nodes = max(len(edu) for edu in self.all_edu)
-        self.graphs = []
-
-        for idx, edu in enumerate(self.all_edu):
-            # Embedding dei nodi
-            embs = [item['embedding'] for item in edu]
-            tensor_edu = torch.tensor(embs, dtype=torch.float)
-
-            # Padding degli embeddings
-            padding_size = self.max_nodes - len(tensor_edu)
-            padded_emb = torch.cat([tensor_edu, torch.zeros(padding_size, tensor_edu.size(1))], dim=0)
-
-            # Edge index
-            edge_index = self.get_edges(idx)
-
-            # Edge positive
-            pos_train_edge = [(rel['x'], rel['y']) for rel in self.all_dag[idx]['relations']]
-            pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
-
-            """
-                Ogni Grafo è rappresentato da un oggetto Data, contenente gli attributi 
-                node_emb (con il padding), edge_index e pos_train_edge.
-                L'id del grafo non ha subito una variazione dal file json.
-            """
-            graph = Data(x=padded_emb, edge_index=edge_index, pos_train_edge=pos_train_edge)
-            self.graphs.append(graph)
-
-        print('self.grpahs[0]', self.graphs[0])
-
-    def __len__(self):
-        return len(self.graphs)
-
-    def __getitem__(self, idx):
-        return self.graphs[idx]
-
-    def get_edges(self, idx):
-        dag = self.all_dag[idx]
-        """
-            Da una lista di coppie, crea due liste (la prima contiene gli archi in entrata e la seconda quelli in uscita)
-        """
-        edges = [(rel['x'], rel['y']) for rel in dag['relations']]
-        lst1, lst2 = zip(*edges)
-        return torch.tensor([lst1, lst2], dtype=torch.long)
-
-
-"""
-    La funzione collate_fn serve per combinare i dati per il DataLoader. Quindi, prende una lista di dati 
-    (in questo caso, una lista di oggetti di tipo Data di PyTorch Geometric, ognuno rappresentante un grafo) 
-    e la converte in un batch. Il batch è una lista di oggetti, ognuno dei quali rappresenta un grafo con 
-    attributi come node_emb, edge_index e pos_train_edge.
-"""
-def collate_fn(batch):
-    return Batch.from_data_list(batch)
-
-
-def load_data(dataset_filename):
-    with open(dataset_filename, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-
-    return data
-
-
-def n_dialogues(dataset_filename):
-    with open(dataset_filename, 'r', encoding='utf-8') as file:
-        data = json.load(file)
-
-    return len(data)
-
-
-def save_models(model, link_predictor, path):
-    torch.save({
-        'model_state_dict': model.state_dict(),
-        'link_predictor_state_dict': link_predictor.state_dict()
-    }, path)
-    print(f"Modelli salvati in {path}")
-
-
-def load_models(path):
-    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
-    link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
-
-    checkpoint = torch.load(path, map_location=torch.device('cpu'))  # Usa 'cuda' se hai una GPU
-    model.load_state_dict(checkpoint['model_state_dict'])
-    link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
-
-    print(f"Modelli caricati da {path}")
-    return model, link_predictor
-
-
-def get_embs(embs_filename, dialogue_index):
-    with open(embs_filename, 'r', encoding='utf-8') as file:
-        data = json.load(file)[dialogue_index]
-
-    embs = [item['embedding'] for item in data]
-    return torch.tensor(embs, dtype=torch.float)
-
-
-def get_edges(dataset_filename, dialogue_index):
-    with open(dataset_filename, 'r', encoding='utf-8') as file:
-        tmp = [(rel['x'], rel['y']) for rel in json.load(file)[dialogue_index]['relations']]
-
-    # print(tmp)
-    lst1, lst2 = zip(*tmp)
-    lst1 = list(lst1)
-    lst2 = list(lst2)
-
-    return torch.tensor([lst1,  # nodi di origine
-                         lst2],  # nodi di destinazione
-                        dtype=torch.long)
-
-
-def super_new_get_edges(all_dialogues, dialogue_index):
-    tmp = [(rel['x'], rel['y']) for rel in all_dialogues[dialogue_index]['relations']]
-
-    # print(tmp)
-    lst1, lst2 = zip(*tmp)
-    lst1 = list(lst1)
-    lst2 = list(lst2)
-
-    return torch.tensor([lst1,  # nodi di origine
-                         lst2],  # nodi di destinazione
-                        dtype=torch.long)
-
-
-def eval_metrics(pos_test_pred, neg_test_pred):
-    preds = torch.cat([pos_test_pred, neg_test_pred], dim=0)
-    labels = torch.cat([torch.ones_like(pos_test_pred), torch.zeros_like(neg_test_pred)], dim=0)
-    threshold = 0.6
-    preds_bin = (preds > threshold).float()
-
-    accuracy = accuracy_score(labels.cpu(), preds_bin.cpu())
-    precision = precision_score(labels.cpu(), preds_bin.cpu())
-    recall = recall_score(labels.cpu(), preds_bin.cpu())
-
-    return accuracy, precision, recall
 
 
 def test_worker(model, predictor, emb, edge_index, pos_test_edge):
@@ -276,95 +128,48 @@ def test(dataset_filename, embs_filename, model, link_predictor, batch_size=1000
     print(f'Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
 
 
-def old_train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
-    if model is None:
-        model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
+def validate(dataset_filename, embs_filename, model, link_predictor, threshold=0.5):
+    all_dialogues = load_data(dataset_filename)
+    all_embs = load_data(embs_filename)
+    n = len(all_dialogues)
 
-    if link_predictor is None:
-        link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
+    total_predictions, total_correct_predictions = 0, 0
 
-    optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=learning_rate)
+    for dialogue_index in range(n):
+        n_edus = len(all_dialogues[dialogue_index]['edus'])
+        curr_correct_prediction_counter = 0
+        embs = torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float)
 
-    n = n_dialogues(dataset_filename)
-    num_samples = min(batch_size, n)
+        edge_index = super_new_get_edges(all_dialogues, dialogue_index)
+        target_node = get_target_node(dataset_filename, create_graph(all_dialogues[dialogue_index]))[0]
+        removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
 
-    for epoch in range(num_epochs):
-        batch_losses = []
+        # print('Target node', target_node)
+        # print('Edge index', edge_index)
+        # print('Removed index', removed_edge_index)
+        # print('Filtered index', filtered_edge_index)
 
-        for batch_index, batch_dialogues in enumerate(DataLoader(range(n), batch_size=batch_size, shuffle=True, num_workers=4), start=1):
-            dialogue_losses = []
-            batch_dialogues = batch_dialogues.tolist()
-            print('Sampled dialogues:', batch_dialogues)
+        # data = Data(x=embs, edge_index=edge_index)   # (N, d)
+        data = Data(x=embs, edge_index=filtered_edge_index)
+        node_embs = model(data)
 
-            for dialogue_index in batch_dialogues:
-                # print(f'Sampled dialogue {dialogue_index}')
-                embs = get_embs(embs_filename, dialogue_index)
-                print('embs', embs)
-                edge_index = get_edges(dataset_filename, dialogue_index)
-                dialogue_losses.append(train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer))
+        for i in range(removed_edge_index.shape[1]):
+            emb_1 = node_embs[removed_edge_index[0, i]]
+            emb_2 = node_embs[removed_edge_index[1, i]]
+            # print(emb_1, emb_2)
 
-            batch_loss = torch.stack(dialogue_losses).mean()
-            batch_losses.append(batch_loss)
+            prob = link_predictor(emb_1, emb_2)
+            # print(prob)
 
-            optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
+            if prob >= threshold:
+                curr_correct_prediction_counter += 1
 
-            print(f"Epoch {epoch+1}/{num_epochs}, Batch {batch_index} -> Batch training Loss: {batch_loss:.4f}")
+        print(f'[Dialogo {dialogue_index}] Predizioni corrette: {curr_correct_prediction_counter}/{removed_edge_index.shape[1]}')
+        total_predictions += removed_edge_index.shape[1]
+        total_correct_predictions += curr_correct_prediction_counter
 
-        print(f'Num batch in epoch {epoch}: {batch_index}')
-        epoch_loss = torch.stack(batch_losses).mean()
-        print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
-
-        save_models(model, link_predictor, file_path)
-
-    return model, link_predictor
-
-
-def old_dataset_train(train_dataset, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
-    if model is None:
-        model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
-
-    if link_predictor is None:
-        link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
-
-    optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=learning_rate)
-
-    # n = n_dialogues(dataset_filename)
-
-    for epoch in range(num_epochs):
-        batch_losses = []
-
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-
-        for batch_index, (indices, batch_dialogues) in enumerate(zip(train_loader.batch_sampler, train_loader), start=1):
-            dialogue_losses = []
-            batch_dialogues = batch_dialogues.to_data_list()
-            print('Sampled dialogues:', indices)
-            # print('Batch dialogues:', batch_dialogues)
-
-            for dialogue in batch_dialogues:
-                embs = dialogue.x
-                edge_index = dialogue.edge_index
-                print('edge_index:', edge_index)
-                dialogue_losses.append(train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer))
-
-            batch_loss = torch.stack(dialogue_losses).mean()
-            batch_losses.append(batch_loss)
-
-            optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
-
-            print(f"Epoch {epoch+1}/{num_epochs}, Batch {batch_index} -> Batch training Loss: {batch_loss:.4f}")
-
-        print(f'Num batch in epoch {epoch}: {batch_index}')
-        epoch_loss = torch.stack(batch_losses).mean()
-        print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
-
-        # save_models(model, link_predictor, file_path)
-
-    return model, link_predictor
+    print(f'Totale predizioni corrette: {total_correct_predictions}/{total_predictions} '
+          f'({(total_correct_predictions / total_predictions) * 100:.2f}%)')
 
 
 def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
@@ -412,15 +217,58 @@ def train(dataset_filename, embs_filename, num_epochs=100, batch_size=50, learni
     return model, link_predictor
 
 
+def predict_worker(dialogue_json, old_embs, target_node, new_edu, new_edu_emb, model, link_predictor, threshold=0.5):
+    edge_index = super_new_get_edges([dialogue_json], 0)
+    data = Data(x=old_embs, edge_index=edge_index)   # (N, d)
+    node_embs = model(data)
+
+    print('node_embs:', node_embs)
+    node_embs[target_node] = new_edu_emb
+    print('node_embs:', node_embs)
+
+    # node_embs[target_node]['edu'] = new_edu
+    # node_embs[target_node]['embedding'] = new_edu_emb
+    removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
+
+
+
+
+    # new_embs = torch.tensor([item['embedding'] for item in old_embs], dtype=torch.float)
+
+    print('Edge index', edge_index)
+    print('Removed index', removed_edge_index)
+    print('Filtered index', filtered_edge_index)
+
+
+def predict(dataset_filename, embs_filename, model, link_predictor):
+    all_dialogues = load_data(dataset_filename)
+    all_embs = load_data(embs_filename)
+    n = len(all_dialogues)
+    dialogue_index = 0
+
+    predict_worker(
+        all_dialogues[0],
+        torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
+        target_node=0,
+        new_edu='new_edu',
+        new_edu_emb=torch.tensor([0,1], dtype=torch.float),
+        model=model,
+        link_predictor=link_predictor
+    )
+
 
 if __name__ == '__main__':
-    file_path = 'pretrained_models_MINECRAFT.pth'
+    file_path = 'pretrained_models_MOLWENI.pth'
     trained_model, trained_link_predictor = load_models(file_path)
 
-    trained_model, trained_link_predictor = train('../../dataset/MOLWENI/train.json',
-        '../../embeddings/MPNet/MOLWENI_training_embeddings.json', num_epochs=10, model=trained_model, link_predictor=trained_link_predictor)
+    # trained_model, trained_link_predictor = train('../../dataset/MOLWENI/train.json',
+    #     '../../embeddings/MPNet/MOLWENI_training_embeddings.json', num_epochs=10, model=trained_model, link_predictor=trained_link_predictor)
+    #
+    # test('../../dataset/MINECRAFT/TEST_133.json', '../../embeddings/MPNet/MINECRAFT_testing133_embeddings.json', trained_model, trained_link_predictor)
 
-    test('../../dataset/MINECRAFT/TEST_133.json', '../../embeddings/MPNet/MINECRAFT_testing133_embeddings.json', trained_model, trained_link_predictor)
+    validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
+
+    # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
 
 
