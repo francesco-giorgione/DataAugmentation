@@ -9,7 +9,10 @@ from torch_geometric.data import Data, Batch
 from torch_geometric.utils import negative_sampling
 from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
-from GNN_new_test import eval_metrics
+from tqdm import tqdm
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from GNN_new_test import save_models
+
 
 
 # creazione dataset per l'apertura dei DAG
@@ -143,7 +146,23 @@ class LinkPredictor(nn.Module):
             x = F.dropout(x, p=self.dropout, training=self.training)
         x = self.lins[-1](x)
         return torch.sigmoid(x)
+
+
+def eval_metrics(pos_test_pred, neg_test_pred, threshold = 0.5):
+    print(f"pos_test_pred: {pos_test_pred}")
+    print(f"neg_test_pred: {neg_test_pred}")
+
     
+    preds = torch.cat([pos_test_pred, neg_test_pred], dim=0)
+    labels = torch.cat([torch.ones_like(pos_test_pred), torch.zeros_like(neg_test_pred)], dim=0)
+    # threshold = 0.5
+    preds_bin = (preds > threshold).float()
+
+    accuracy = accuracy_score(labels.cpu(), preds_bin.cpu())
+    precision = precision_score(labels.cpu(), preds_bin.cpu(), zero_division=1)
+    recall = recall_score(labels.cpu(), preds_bin.cpu(), zero_division=1)
+
+    return accuracy, precision, recall
 
 
 def train(model, num_epochs, link_predictor, train_loader, optimizer):
@@ -151,78 +170,82 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer):
     link_predictor.train()
     train_losses = []
 
-    for epoch in range(num_epochs):
-        for i, batch in enumerate(train_loader):
-            print(f"Epoch: {epoch}, batch {i}")
-            optimizer.zero_grad()
-            
-            # Attributi del batch
-            node_emb = batch.x  # Embedding dei nodi (N, d)
-            # Due liste con archi in entrata e in uscita
-            edge_index = batch.edge_index  # Edge index (2, E)
-            # (source, target) che indica un arco positivo (realmente presente) nel grafo
-            pos_train_edge = batch.pos_train_edge  # Edge positive (B, 2)
+    with tqdm(total=num_epochs, desc="Training") as progress_bar:
+        for epoch in range(num_epochs):
+            for i, batch in enumerate(train_loader):
+                # print(f"Epoch: {epoch}, batch {i}")
+                optimizer.zero_grad()
+                
+                # Attributi del batch
+                node_emb = batch.x  # Embedding dei nodi (N, d)
+                # Due liste con archi in entrata e in uscita
+                edge_index = batch.edge_index  # Edge index (2, E)
+                # (source, target) che indica un arco positivo (realmente presente) nel grafo
+                pos_train_edge = batch.pos_train_edge  # Edge positive (B, 2)
 
-            # Passa le embedding e gli archi attraverso il modello
-            node_emb = model(node_emb, edge_index)  # (N, d)
-            # print(edge_index)
+                # Passa le embedding e gli archi attraverso il modello
+                node_emb = model(node_emb, edge_index)  # (N, d)
+                # print(edge_index)
 
-            
-            """
-                link_predictor è un modello che prende gli embedding dei nodi e li usa per predire la
-                probabilità che esista un arco tra due nodi.
-                Gli indici di pos_train_edge (ad esempio, pos_train_edge[:, 0] e pos_train_edge[:, 1]) 
-                vengono utilizzati per ottenere gli embedding dei due nodi che costituiscono un arco positivo. 
-                Quindi, node_emb[pos_train_edge[:, 0]] è l'embedding del nodo di partenza, 
-                e node_emb[pos_train_edge[:, 1]] è l'embedding del nodo di arrivo.
-                La variabile pos_pred è il risultato della previsione (probabilità) che l'arco esista tra i due nodi. 
-                Ogni valore in pos_pred rappresenta la probabilità che un arco esista tra 
-                una coppia di nodi specificata da pos_train_edge.
-            """
-            pos_pred = link_predictor(node_emb[pos_train_edge[:, 0]], node_emb[pos_train_edge[:, 1]])
+                
+                """
+                    link_predictor è un modello che prende gli embedding dei nodi e li usa per predire la
+                    probabilità che esista un arco tra due nodi.
+                    Gli indici di pos_train_edge (ad esempio, pos_train_edge[:, 0] e pos_train_edge[:, 1]) 
+                    vengono utilizzati per ottenere gli embedding dei due nodi che costituiscono un arco positivo. 
+                    Quindi, node_emb[pos_train_edge[:, 0]] è l'embedding del nodo di partenza, 
+                    e node_emb[pos_train_edge[:, 1]] è l'embedding del nodo di arrivo.
+                    La variabile pos_pred è il risultato della previsione (probabilità) che l'arco esista tra i due nodi. 
+                    Ogni valore in pos_pred rappresenta la probabilità che un arco esista tra 
+                    una coppia di nodi specificata da pos_train_edge.
+                """
+                pos_pred = link_predictor(node_emb[pos_train_edge[:, 0]], node_emb[pos_train_edge[:, 1]])
 
 
-            """
-                negative_sampling è una funzione che campiona in modo casuale delle coppie di nodi che 
-                non sono connesse nel grafo (cioè, non sono presenti in edge_index). Questi sono i negativi. 
-                Il numero di coppie negative campionate è pari a num_neg_samples, che corrisponde al numero 
-                di archi positivi, pos_train_edge.shape[0], così da avere lo stesso numero di esempi positivi e negativi.
+                """
+                    negative_sampling è una funzione che campiona in modo casuale delle coppie di nodi che 
+                    non sono connesse nel grafo (cioè, non sono presenti in edge_index). Questi sono i negativi. 
+                    Il numero di coppie negative campionate è pari a num_neg_samples, che corrisponde al numero 
+                    di archi positivi, pos_train_edge.shape[0], così da avere lo stesso numero di esempi positivi e negativi.
 
-                Viene effeuata la trasposizione dell'output di negative_sampling per ottenere la stessa shape di 
-                pos_train_edge. In quanto di default la shape corrisponde a edge_index.
-            """
-            neg_edge = negative_sampling(edge_index, num_nodes=node_emb.shape[0],
-                                        num_neg_samples=pos_train_edge.shape[0], method='dense').T  # (Ne, 2)
-            # Previsione dei negativi
-            neg_pred = link_predictor(node_emb[neg_edge[:, 0]], node_emb[neg_edge[:, 1]])  # (Ne,)
+                    Viene effeuata la trasposizione dell'output di negative_sampling per ottenere la stessa shape di 
+                    pos_train_edge. In quanto di default la shape corrisponde a edge_index.
+                """
+                neg_edge = negative_sampling(edge_index, num_nodes=node_emb.shape[0],
+                                            num_neg_samples=pos_train_edge.shape[0], method='dense').T  # (Ne, 2)
+                # Previsione dei negativi
+                neg_pred = link_predictor(node_emb[neg_edge[:, 0]], node_emb[neg_edge[:, 1]])  # (Ne,)
 
-            """
-                - pos_pred: Le previsioni per gli archi che esistono effettivamente nel grafo. 
-                            L'idea è che il modello dovrebbe dare alte probabilità per questi archi.
-                - neg_pred: Le previsioni per gli archi che non esistono nel grafo (campionati negativamente). 
-                            Il modello dovrebbe dare basse probabilità per questi archi.
-            """
+                """
+                    - pos_pred: Le previsioni per gli archi che esistono effettivamente nel grafo. 
+                                L'idea è che il modello dovrebbe dare alte probabilità per questi archi.
+                    - neg_pred: Le previsioni per gli archi che non esistono nel grafo (campionati negativamente). 
+                                Il modello dovrebbe dare basse probabilità per questi archi.
+                """
 
-            # print("Pos Pred:", pos_pred.shape)
-            # print("Neg Pred:", neg_pred.shape)
-            
-            """
-                La loss di link prediction verrà calcolata confrontando pos_pred (che dovrebbe essere vicino a 1) 
-                e neg_pred (che dovrebbe essere vicino a 0), spingendo il modello a imparare a fare distinzioni 
-                corrette tra archi esistenti e non esistenti.
-            """
-            loss = -torch.log(pos_pred + 1e-15).mean() - torch.log(1 - neg_pred + 1e-15).mean()
-            loss.backward()
-            optimizer.step()
+                # print("Pos Pred:", pos_pred.shape)
+                # print("Neg Pred:", neg_pred.shape)
+                
+                """
+                    La loss di link prediction verrà calcolata confrontando pos_pred (che dovrebbe essere vicino a 1) 
+                    e neg_pred (che dovrebbe essere vicino a 0), spingendo il modello a imparare a fare distinzioni 
+                    corrette tra archi esistenti e non esistenti.
+                """
+                loss = -torch.log(pos_pred + 1e-15).mean() - torch.log(1 - neg_pred + 1e-15).mean()
+                loss.backward()
+                optimizer.step()
 
-            # Aggiungi la loss alla lista dei risultati
-            print(f"Loss: {loss.item()}")
-            train_losses.append(loss.item())
+                # Aggiungi la loss alla lista dei risultati
+                # print(f"Loss: {loss.item()}")
+                train_losses.append(loss.item())
+        
+            progress_bar.update(1)
+            progress_bar.set_postfix({'Loss': loss.item()})
 
     return sum(train_losses) / len(train_losses)
 
 
-def test(model, num_epochs, link_predictor, evaluator, test_loader):
+def test(model, num_epochs, link_predictor, test_loader, threshold):
     model.eval()
     link_predictor.eval()
     test_losses = []
@@ -230,9 +253,9 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
     neg_pred = []
 
 
-    with torch.no_grad():   # senza tener traccia dei gradienti
+    with torch.no_grad(), tqdm(total=len(test_loader), desc="Testing") as progress_bar:   # senza tener traccia dei gradienti
         for i, batch in enumerate(test_loader):
-            print(f"Batch {i}")
+            # print(f"Batch {i}")
             # Attributi del batch
             node_emb = batch.x  # Embedding dei nodi (N, d)
             # Due liste con archi in entrata e in uscita
@@ -271,13 +294,15 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
             loss = -torch.log(tmp_pos_pred + 1e-15).mean() - torch.log(1 - tmp_neg_pred + 1e-15).mean()
 
             # Aggiungi la loss alla lista dei risultati
-            print(f"Loss: {loss.item()}")
+            # print(f"Loss: {loss.item()}")
             test_losses.append(loss.item())
+            progress_bar.update(1)
+            progress_bar.set_postfix({'Loss': loss.item()})
 
 
     pos_pred = torch.cat(pos_pred, dim=0)
     neg_pred = torch.cat(neg_pred, dim=0)
-    accuracy, precision, recall = eval_metrics(pos_pred, neg_pred)
+    accuracy, precision, recall = eval_metrics(pos_pred, neg_pred, threshold=threshold)
     loss = sum(test_losses) / len(test_losses)
     print(f"Accuracy {accuracy}, Precision {precision}, Recall {recall}, Loss {loss}")
     return {"accuracy" : accuracy, "precision" : precision, "recall" : recall, "loss" : loss}
@@ -298,18 +323,48 @@ def test(model, num_epochs, link_predictor, evaluator, test_loader):
     return results, sum(test_losses) / len(test_losses) """
 
 
+def load_models(path, num_layers):
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=768, num_layers=num_layers, dropout=0.6)
+    link_predictor = LinkPredictor(in_channels=768, hidden_channels=384, out_channels=1, num_layers=num_layers, dropout=0.6) 
+
+    checkpoint = torch.load(path, map_location=torch.device('cpu'))  # Usa 'cuda' se hai una GPU
+    model.load_state_dict(checkpoint['model_state_dict'])
+    link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
+
+    print(f"Modelli caricati da {path}")
+    return model, link_predictor
+
+
 if __name__ == "__main__":
     """
         Dataset che contiene tutte le edu per in dato DAG.
         ID_DAG = ID_ELEMENTO_DATASET
     """
-    train_edu = CustomEduDataset(
-        embeddings_path='embeddings/STAC_training_embeddings.json',
+    """ train_edu = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/STAC_training_embeddings.json',
         edges_path='dataset/STAC/train_subindex.json'
     )
     test_edu = CustomEduDataset(
-        embeddings_path='embeddings/STAC_testing_embeddings.json',
+        embeddings_path='embeddings/MPNet/STAC_testing_embeddings.json',
         edges_path='dataset/STAC/test_subindex.json'
+    ) """
+
+    """ train_edu = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
+        edges_path='dataset/MINECRAFT/TRAIN_307_bert.json'
+    )
+    test_edu = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
+        edges_path='dataset/MINECRAFT/TEST_133.json'
+    ) """
+
+    train_edu = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
+        edges_path='dataset/MOLWENI/train.json'
+    )
+    test_edu = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
+        edges_path='dataset/MOLWENI/test.json'
     )
 
     """
@@ -322,16 +377,17 @@ if __name__ == "__main__":
     test_emb_loader = DataLoader(test_edu, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
 
-    model = GNNStack(input_dim=384, hidden_dim=384, output_dim=384, num_layers=3, dropout=0.6)
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=3, dropout=0.6)
-    # LinkPredictorMLP
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=768, num_layers=3, dropout=0.6)                          # MiniLM 384 - MPNet 768
+    link_predictor = LinkPredictor(in_channels=768, hidden_channels=384, out_channels=1, num_layers=3, dropout=0.6)     # MiniLM 128 - MPNet 384
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
-    train(model, 100, link_predictor, train_emb_loader, optimizer)
+    # model, link_predictor = load_models("pretrain_model/Molweni_30epc_3l_pretrained_models.pth", num_layers = 3)
+    train(model, 30, link_predictor, train_emb_loader, optimizer)
+    
+    save_models(model, link_predictor, 'pretrain_model/Molweni_30epc_3l_pretrained_models.pth')
 
-    evaluator = Evaluator(name = 'ogbl-collab') # https://ogb.stanford.edu/docs/linkprop/
+    """ evaluator = Evaluator(name = 'ogbl-collab') # https://ogb.stanford.edu/docs/linkprop/
 
     print(evaluator.expected_input_format) 
-    print(evaluator.expected_output_format) 
-
-    test(model, 1, link_predictor, evaluator, test_emb_loader)
+    print(evaluator.expected_output_format)  """
+    test(model, 1, link_predictor, test_emb_loader, threshold=0.5)
