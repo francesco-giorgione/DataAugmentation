@@ -140,16 +140,56 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     return prompt
 
-def get_embedding_generated_edu(id_dialogue, removed_edu, generated_edu):
 
-    embedding = create_one_embedding(generated_edu)
+def get_new_edu(data, dialogue_index):
+    graph = crea_grafo_da_json([data[dialogue_index]])
+    target_node = get_edu_from_DAG(
+        "MOLWENI",
+        # da sostituire con dataset_name,
+        graph)[0]
 
-    return embedding
+    print(target_node)
+    subgraph = get_subgraph(target_node, graph)
 
+    edus_list = []
+    relations_list = []
+
+    for node, data in subgraph.nodes(data=True):
+        edus_list.append([node, data.get('text')])
+
+    for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
+        relations_list.append((source, target, type.get('relationship')))
+
+    print(edus_list)
+    print(relations_list)
+
+    missing_edu = target_node
+    prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+
+    print(prompt)
+
+    try:
+        print('Producing response...')
+        response = get_response(prompt)
+        print("Pipeline executed successfully.")
+    except Exception as e:
+        print("Error occurred:")
+        print(e)
+
+    print(response.choices[0].message.content)
+
+    output = response.choices[0].message.content
+
+    # Rimuove solo i caratteri ' all'inizio e alla fine
+    new_edu = output.strip("'")
+    return new_edu, target_node
+
+
+def get_new_edu_emb(new_edu):
+    return create_one_embedding(new_edu)
 
 
 if __name__ == '__main__':
-
     dataset_name_list = ["STAC_training"]
 
     for dataset_name in dataset_name_list:
@@ -158,56 +198,8 @@ if __name__ == '__main__':
         data = load_data(file_path)
 
         # for i, dialogue in enumerate(data):
-
             # graph = crea_grafo_da_json([dialogue])
 
         dialogue_index = 0
-
-        graph = crea_grafo_da_json([data[dialogue_index]])
-
-
-        target_node = get_edu_from_DAG(
-            "STAC",
-            # da sostituire con dataset_name, 
-            graph)[0]
-
-        print(target_node)
-
-        subgraph = get_subgraph(target_node, graph)
-
-        edus_list = []
-        relations_list = []
-
-        for node, data in subgraph.nodes(data=True):
-            edus_list.append([node, data.get('text')])
-
-        
-        for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
-            relations_list.append((source, target, type.get('relationship')))
-
-        print(edus_list)
-        print(relations_list)
-
-        missing_edu = target_node
-
-        prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
-
-        print(prompt)
-
-        try:
-            print('Producing response...')
-            response = get_response(prompt)
-            print("Pipeline executed successfully.")
-        except Exception as e:
-            print("Error occurred:")
-            print(e)
-
-        print(response.choices[0].message.content)
-
-        output = response.choices[0].message.content
-
-        # Rimuove solo i caratteri ' all'inizio e alla fine
-        new_edu = output.strip("'")
-
-        #embedding_new_edu = get_embedding_generated_edu(dialogue["id"], missing_edu, new_edu)
-        embedding_new_edu = get_embedding_generated_edu(dialogue_index, missing_edu, new_edu)
+        new_edu = get_new_edu(data, dialogue_index)
+        embedding_new_edu = create_one_embedding(new_edu)
