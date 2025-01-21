@@ -4,7 +4,7 @@ import re
 from get_edu import *
 from vincoli_edu import *
 import random
-
+from MPNet_embedding import *
 
 client = OpenAI(api_key="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")
 
@@ -140,6 +140,13 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     return prompt
 
+def get_embedding_generated_edu(id_dialogue, removed_edu, generated_edu):
+
+    embedding = create_one_embedding(generated_edu)
+
+    return embedding
+
+
 
 if __name__ == '__main__':
 
@@ -150,40 +157,51 @@ if __name__ == '__main__':
     
         data = load_data(file_path)
 
-        # Farlo per ogni dialogo del dataset
-        graph = crea_grafo_da_json([data[1]])
+        for dialogue in data:
 
-        # Aggiungere metodo di scelta nodo da sostituire
-        target_node = random.choice(list(graph.nodes))
+            graph = crea_grafo_da_json([data[1]])
 
-        print(target_node)
+            target_node = get_edu_from_DAG(
+                "STAC",
+                # da sostituire con dataset_name, 
+                graph)
 
-        subgraph = get_subgraph(target_node, graph)
+            print(target_node)
 
-        edus_list = []
-        relations_list = []
+            subgraph = get_subgraph(target_node, graph)
 
-        for node, data in subgraph.nodes(data=True):
-            edus_list.append([node, data.get('text')])
+            edus_list = []
+            relations_list = []
 
-        
-        for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
-            relations_list.append((source, target, type.get('relationship')))
+            for node, data in subgraph.nodes(data=True):
+                edus_list.append([node, data.get('text')])
 
-        print(edus_list)
-        print(relations_list)
+            
+            for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
+                relations_list.append((source, target, type.get('relationship')))
 
-        missing_edu = target_node
+            print(edus_list)
+            print(relations_list)
 
-        prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+            missing_edu = target_node
 
-        print(prompt)
+            prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
-        try:
-            print('Producing response...')
-            response = get_response(prompt)
-            print("Pipeline executed successfully.")
+            print(prompt)
+
+            try:
+                print('Producing response...')
+                response = get_response(prompt)
+                print("Pipeline executed successfully.")
+            except Exception as e:
+                print("Error occurred:")
+                print(e)
+
             print(response.choices[0].message.content)
-        except Exception as e:
-            print("Error occurred:")
-            print(e)
+
+            output = response.choices[0].message.content
+
+            # Rimuove solo i caratteri ' all'inizio e alla fine
+            new_edu = output.strip("'")
+
+            embedding_new_edu = get_embedding_generated_edu(dialogue["id"], missing_edu, new_edu)
