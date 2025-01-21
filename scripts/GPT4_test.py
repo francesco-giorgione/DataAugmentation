@@ -6,10 +6,10 @@ from vincoli_edu import *
 import random
 from MPNet_embedding import *
 
-client = OpenAI(api_key="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")
+# client = OpenAI(api_key="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")
 
 # Usando l'API gpt4-all
-# client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
+client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
 
 
 def get_response(prompt):
@@ -157,51 +157,57 @@ if __name__ == '__main__':
     
         data = load_data(file_path)
 
-        for dialogue in data:
+        # for i, dialogue in enumerate(data):
 
-            graph = crea_grafo_da_json([data[1]])
+            # graph = crea_grafo_da_json([dialogue])
 
-            target_node = get_edu_from_DAG(
-                "STAC",
-                # da sostituire con dataset_name, 
-                graph)
+        dialogue_index = 0
 
-            print(target_node)
+        graph = crea_grafo_da_json([data[dialogue_index]])
 
-            subgraph = get_subgraph(target_node, graph)
 
-            edus_list = []
-            relations_list = []
+        target_node = get_edu_from_DAG(
+            "STAC",
+            # da sostituire con dataset_name, 
+            graph)[0]
 
-            for node, data in subgraph.nodes(data=True):
-                edus_list.append([node, data.get('text')])
+        print(target_node)
 
-            
-            for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
-                relations_list.append((source, target, type.get('relationship')))
+        subgraph = get_subgraph(target_node, graph)
 
-            print(edus_list)
-            print(relations_list)
+        edus_list = []
+        relations_list = []
 
-            missing_edu = target_node
+        for node, data in subgraph.nodes(data=True):
+            edus_list.append([node, data.get('text')])
 
-            prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+        
+        for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
+            relations_list.append((source, target, type.get('relationship')))
 
-            print(prompt)
+        print(edus_list)
+        print(relations_list)
 
-            try:
-                print('Producing response...')
-                response = get_response(prompt)
-                print("Pipeline executed successfully.")
-            except Exception as e:
-                print("Error occurred:")
-                print(e)
+        missing_edu = target_node
 
-            print(response.choices[0].message.content)
+        prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
-            output = response.choices[0].message.content
+        print(prompt)
 
-            # Rimuove solo i caratteri ' all'inizio e alla fine
-            new_edu = output.strip("'")
+        try:
+            print('Producing response...')
+            response = get_response(prompt)
+            print("Pipeline executed successfully.")
+        except Exception as e:
+            print("Error occurred:")
+            print(e)
 
-            embedding_new_edu = get_embedding_generated_edu(dialogue["id"], missing_edu, new_edu)
+        print(response.choices[0].message.content)
+
+        output = response.choices[0].message.content
+
+        # Rimuove solo i caratteri ' all'inizio e alla fine
+        new_edu = output.strip("'")
+
+        #embedding_new_edu = get_embedding_generated_edu(dialogue["id"], missing_edu, new_edu)
+        embedding_new_edu = get_embedding_generated_edu(dialogue_index, missing_edu, new_edu)
