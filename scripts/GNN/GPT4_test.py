@@ -17,7 +17,7 @@ def get_response(prompt):
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         stream=False,
-        n= 3
+        n = 3
     )
 
     return response
@@ -69,12 +69,12 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     relationship_types_text = """
     ### Relationship Types:
-    1. Question_answer_pair (QAP): One EDU poses a question, and the other provides an answer.
+    1. Question_answer_pair: One EDU poses a question, and the other provides an answer.
     2. Comment: One EDU adds an observation or remark related to the other.
     3. Acknowledgement: One EDU acknowledges or affirms the information in the other.
     4. Continuation: One EDU continues the idea or topic introduced in the other.
     5. Elaboration: One EDU expands on or provides more detail about the other.
-    6. Q_Elab (Q-Elab): One EDU elaborates on the question posed by the other.
+    6. Q_Elab: One EDU elaborates on the question posed by the other.
     7. Contrast: One EDU presents information that contrasts with the other.
     8. Explanation: One EDU provides an explanation or reasoning related to the other.
     9. Clarification_question: One EDU seeks clarification about the information in the other.
@@ -87,8 +87,29 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     16. Narration: One EDU describes a sequence of events or tells a story.
     17. Confirmation_question: One EDU seeks confirmation or validation of the information in the other.
     18. Sequence: One EDU describes an event that occurs before or after the other.
+    19. Question-answer_pair: One EDU poses a question, and the other provides an answer.
+    20. QAP: One EDU poses a question, and the other provides an answer.
+    21. Q-Elab: One EDU elaborates on the question posed by the other.
     """
 
+    relationship_dict = {
+    match.group(1): match.group(0)
+    for match in re.finditer(r'(\w+):.*', relationship_types_text)
+    }
+
+    relationships_prompt = "### Relationship Types: \n"
+
+    i = 1
+
+    for rel in subgraph_relationships:
+        relation_type = rel[2]
+        if relation_type in relationship_dict:
+            relationships_prompt += f"{i}. " + relationship_dict[relation_type] + "\n"
+            i += 1
+        else:
+            print(f"La relazione '{relation_type}' NON è valida.")
+
+    print(relationships_prompt)
 
     # Prompt dettagliato
     prompt = f"""
@@ -107,7 +128,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
       - Ensure the generated EDU fits naturally with all connected EDUs.
       - Preserve all semantic relationships involving the missing EDU.
 
-    {relationship_types_text}
+    {relationships_prompt}
 
     ### Example:
     Input EDUs:
@@ -121,7 +142,9 @@ def generate_precise_prompt(edus, relationships, missing_edu):
 
     The removed EDU is the EDU that appears in all relations specified in relationships
 
-    EDU2 is removed. Generate a new EDU that logically replaces only EDU2: 'The weather looks gloomy, which might indicate rain.'
+    EDU2 is removed. Generate a new EDU that logically replaces only EDU2, preserving all semantic
+    relationships of EDU2 with other EDUs, defined in the previous list Relationships: 
+    'The weather looks gloomy, which might indicate rain.'
 
     ---
 
@@ -134,7 +157,8 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     {subgraph_relationships_text}
 
     EDU{remapped_missing_edu+1} is removed.
-    Generate a new EDU that logically replaces only EDU{remapped_missing_edu+1}:
+    Generate a new EDU that logically replaces only EDU{remapped_missing_edu+1}, preserving all semantic
+    relationships of EDU{remapped_missing_edu+1} with other EDUs, defined in the previous list Relationships:
 
     """
 
@@ -161,6 +185,8 @@ def get_new_edu(data, dialogue_index, dataset_name):
 
     missing_edu = target_node
     prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+
+    print(prompt)
 
     try:
         # print('Producing response...')
