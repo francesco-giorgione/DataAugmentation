@@ -70,15 +70,15 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     relationship_types_text = """
     ### Relationship Types:
     1. Question_answer_pair: One EDU poses a question, and the other provides an answer.
-    2. Comment: One EDU adds an observation or remark related to the other.
-    3. Acknowledgement: One EDU acknowledges or affirms the information in the other.
-    4. Continuation: One EDU continues the idea or topic introduced in the other.
-    5. Elaboration: One EDU expands on or provides more detail about the other.
+    2. Comment: One EDU adds an opinion or evaluation of the content of the other.
+    3. Acknowledgement: One EDU acknowledges or affirms the information in the other, signaled by words like OK, Right, Right then, Good, Fine.
+    4. Continuation: Both EDUs elaborate or provide background to the same segment.
+    5. Elaboration: One EDU provides more information about the eventuality introduced in the other.
     6. Q_Elab: One EDU elaborates on the question posed by the other.
-    7. Contrast: One EDU presents information that contrasts with the other.
+    7. Contrast: Both EDUs have similar semantic structures, but present information that contrast each other.
     8. Explanation: One EDU provides an explanation or reasoning related to the other.
     9. Clarification_question: One EDU seeks clarification about the information in the other.
-    10. Result: One EDU describes the outcome or result of the situation in the other.
+    10. Result: One EDU describes the cause of its effect described in the other.
     11. Correction: One EDU corrects or refines the information presented in the other.
     12. Parallel: Both EDUs describe similar or parallel ideas.
     13. Conditional: One EDU describes a condition necessary for the other to occur.
