@@ -27,7 +27,7 @@ def create_embeddings(dialogue_edus_list):
 
 def create_one_embedding(edu):
     model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
-    embedding = model.encode(edu, show_progress_bar=True)
+    embedding = model.encode(edu, show_progress_bar=False)
 
     return embedding
 
@@ -68,7 +68,7 @@ def main():
 
         edus_list = get_dialogue_edus_list(data)
 
-        print(f"Numero di dialoghi del dataset " + dataset_name + f": : {len(edus_list)}")
+        # print(f"Numero di dialoghi del dataset " + dataset_name + f": : {len(edus_list)}")
         #print(edus_list[:5])
 
         embeddings_edu_list = create_embeddings(edus_list)

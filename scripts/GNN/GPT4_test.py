@@ -13,7 +13,6 @@ client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="htt
 
 
 def get_response(prompt):
-
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
@@ -141,14 +140,13 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     return prompt
 
 
-def get_new_edu(data, dialogue_index):
+def get_new_edu(data, dialogue_index, dataset_name):
     graph = crea_grafo_da_json([data[dialogue_index]])
     target_node = get_edu_from_DAG(
-        "MOLWENI",
-        # da sostituire con dataset_name,
+        dataset_name,
         graph)[0]
 
-    print(target_node)
+    print(f'Chosen node {target_node} in dialogue {dialogue_index}')
     subgraph = get_subgraph(target_node, graph)
 
     edus_list = []
@@ -160,28 +158,24 @@ def get_new_edu(data, dialogue_index):
     for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
         relations_list.append((source, target, type.get('relationship')))
 
-    # print(edus_list)
-    # print(relations_list)
-
     missing_edu = target_node
     prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
-    # print(prompt)
-
     try:
-        print('Producing response...')
+        # print('Producing response...')
         response = get_response(prompt)
-        print("Pipeline executed successfully.")
+        # print("Pipeline executed successfully.")
     except Exception as e:
         print("Error occurred:")
         print(e)
 
-    print(response.choices[0].message.content)
-
     output = response.choices[0].message.content
-
     # Rimuove solo i caratteri ' all'inizio e alla fine
     new_edu = output.strip("'")
+
+    print(f'Old EDU: {data["text"]}')
+    print(f'New EDU: {new_edu}')
+
     return new_edu, target_node
 
 
