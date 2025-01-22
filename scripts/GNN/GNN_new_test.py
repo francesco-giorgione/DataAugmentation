@@ -5,6 +5,7 @@ from torch_geometric.utils import negative_sampling
 from torch_geometric.loader import DataLoader
 import torch.nn.functional as F
 from torch_geometric.data import Data
+from tqdm import tqdm
 from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictorMLP
 import random
 from utils import *
@@ -13,7 +14,7 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from GPT4_test import get_new_edu_emb, get_new_edu
+#from GPT4_test import get_new_edu_emb, get_new_edu
 
 
 
@@ -57,7 +58,7 @@ def test_worker(model, predictor, emb, edge_index, pos_test_edge):
 
     loss = -torch.log(pos_test_pred + 1e-15).mean() - torch.log(1 - neg_test_pred + 1e-15).mean()
 
-    print(f'pos test pred {pos_test_pred}\nneg test pred {neg_test_pred}')
+    # print(f'pos test pred {pos_test_pred}\nneg test pred {neg_test_pred}')
     return loss.item(), pos_test_pred, neg_test_pred
 
 
@@ -147,23 +148,27 @@ def test(dataset_filename, embs_filename, loss_path, loss_desc, model, link_pred
     n = len(all_dialogues)
     num_samples = min(batch_size, n)
     sampled_dialogues = random.sample(range(n), num_samples)
+    test_loder = DataLoader([i for i in range(n)], batch_size=batch_size, shuffle=True)
+    with tqdm(total=len(test_loder), desc="Validating") as progress_bar:
+        for i_batch, sampled_dialogues in enumerate(test_loder, start=1):
+            dialogue_losses = []
 
-    for i_batch, sampled_dialogues in enumerate(DataLoader([i for i in range(n)], batch_size=batch_size, shuffle=True), start=1):
-        dialogue_losses = []
+            for dialogue_index in sampled_dialogues:
+                embs = torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float)
+                edge_index = super_new_get_edges(all_dialogues, dialogue_index)
 
-        for dialogue_index in sampled_dialogues:
-            embs = torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float)
-            edge_index = super_new_get_edges(all_dialogues, dialogue_index)
+                # print(f'[Testing] Sampled dialogue {dialogue_index}')
+                curr_loss, curr_pos_pred, curr_neg_pred = test_worker(model, link_predictor, embs, edge_index, edge_index)
+                # print(f'[Batch {i_batch}] Loss: {curr_loss}')
 
-            print(f'[Testing] Sampled dialogue {dialogue_index}')
-            curr_loss, curr_pos_pred, curr_neg_pred = test_worker(model, link_predictor, embs, edge_index, edge_index)
-            print(f'[Batch {i_batch}] Loss: {curr_loss}')
+                pos_preds.append(curr_pos_pred)
+                neg_preds.append(curr_neg_pred)
+                dialogue_losses.append(curr_loss)
 
-            pos_preds.append(curr_pos_pred)
-            neg_preds.append(curr_neg_pred)
-            dialogue_losses.append(curr_loss)
-
-        batch_losses.append(mean(dialogue_losses))
+            loss = mean(dialogue_losses)
+            batch_losses.append(loss)
+            progress_bar.update(1)
+            progress_bar.set_postfix({'Loss': loss})
 
     pos_preds = torch.cat(pos_preds, dim=0)
     neg_preds = torch.cat(neg_preds, dim=0)
@@ -231,36 +236,39 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
     n = len(all_dialogues)
     loss_history = []
 
-    for epoch in range(num_epochs):
-        batch_losses = []
+    with tqdm(total=num_epochs, desc="Training") as progress_bar:
+        for epoch in range(num_epochs):
+            batch_losses = []
 
-        for batch_index, batch_dialogues in enumerate(DataLoader(range(n), batch_size=batch_size, shuffle=True, num_workers=4), start=1):
-            dialogue_losses = []
-            batch_dialogues = batch_dialogues.tolist()
-            print('Sampled dialogues:', batch_dialogues)
+            for batch_index, batch_dialogues in enumerate(DataLoader(range(n), batch_size=batch_size, shuffle=True, num_workers=4), start=1):
+                dialogue_losses = []
+                batch_dialogues = batch_dialogues.tolist()
+                # print('Sampled dialogues:', batch_dialogues)
 
-            for dialogue_index in batch_dialogues:
-                embs = torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float)
-                edge_index = super_new_get_edges(all_dialogues, dialogue_index)
+                for dialogue_index in batch_dialogues:
+                    embs = torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float)
+                    edge_index = super_new_get_edges(all_dialogues, dialogue_index)
 
-                dialogue_losses.append(train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer))
+                    dialogue_losses.append(train_worker(model, link_predictor, embs, edge_index, edge_index, batch_size, optimizer))
 
-            batch_loss = torch.stack(dialogue_losses).mean()
-            batch_losses.append(batch_loss.item())
+                batch_loss = torch.stack(dialogue_losses).mean()
+                batch_losses.append(batch_loss.item())
 
-            optimizer.zero_grad()
-            batch_loss.backward()
-            optimizer.step()
+                optimizer.zero_grad()
+                batch_loss.backward()
+                optimizer.step()
 
-            print(f"Epoch {epoch+1}/{num_epochs}, Batch {batch_index} -> Batch training Loss: {batch_loss:.4f}")
+                # print(f"Epoch {epoch+1}/{num_epochs}, Batch {batch_index} -> Batch training Loss: {batch_loss:.4f}")
 
-        print(f'Num batch in epoch {epoch}: {batch_index}')
-        # epoch_loss = torch.stack(batch_losses).mean()
-        epoch_loss = mean(batch_losses)
-        loss_history.append(epoch_loss)
-        print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
+            # print(f'Num batch in epoch {epoch}: {batch_index}')
+            # epoch_loss = torch.stack(batch_losses).mean()
+            epoch_loss = mean(batch_losses)
+            loss_history.append(epoch_loss)
+            # print(f"Epoch {epoch+1}/{num_epochs}, Training epoch loss: {epoch_loss:.4f}")
 
-        save_models(model, link_predictor, file_path)
+            save_models(model, link_predictor, file_path)
+            progress_bar.update(1)
+            progress_bar.set_postfix({'Loss': epoch_loss})
 
     plot_loss(loss_history, num_epochs, loss_path, loss_desc)
     return model, link_predictor
@@ -321,21 +329,46 @@ def predict(dataset_filename, embs_filename, model, link_predictor, target_node=
 
 
 if __name__ == '__main__':
-    file_path = 'pretrained_models_MINECRAFT.pth'
-    trained_model, trained_link_predictor = load_models(file_path)
+    
+    trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=2, dropout=0.5, heads=4)
+    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=2, dropout=0.5)    
+    # trained_model, trained_link_predictor = load_models(file_path)
 
-    # trained_model, trained_link_predictor = train('../../dataset/MOLWENI/train.json',
-    #                     "../../embeddings/MPNet/MOLWENI_training_embeddings.json", "../../plot_loss/GAT_MOLWENI_train.png", "MOLWENI Training Loss", num_epochs=60, model=None, link_predictor=None)
-    #
-    # test('../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
-    #         "../../plot_loss/GAT_MOLWENI_test.png", "MOLWENI Testing Loss", trained_model, trained_link_predictor)
-    #
-    # """ test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json',
-    #         "../../plot_loss/GAT_STAC_test.png", "STAC Testing Loss", trained_model, trained_link_predictor) """
+
+    # MINECRAFT
+    file_path = 'pretrained_models_MINECRAFT.pth'
+    trained_model, trained_link_predictor = train('dataset/MINECRAFT/TRAIN_307_bert.json',
+                        "embeddings/MPNet/MINECRAFT_training_embeddings.json", 
+                        "plot_loss/GAT_MINECRAFT_train.png", "MINECRAFT Training Loss", 
+                        num_epochs=10, batch_size=32, learning_rate=0.01, model=trained_model, link_predictor=trained_link_predictor)
+    
+    # --- VALIDAZIONE ---
+    test('dataset/MINECRAFT/VAL_all.json', 'embeddings/MPNet/MINECRAFT_val_embeddings.json',
+            "plot_loss/GAT_MINECRAFT_test.png", "MINECRAFT Testing Loss", 
+            trained_model, trained_link_predictor)
+    
+
+    # MOLWENI
+    """ 
+    file_path = 'pretrained_models_MOLWENI.pth'
+    trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json',
+                        "embeddings/MPNet/MOLWENI_training_embeddings.json", 
+                        "plot_loss/GAT_MOLWENI_train.png", "MOLWENI Training Loss", 
+                        num_epochs=1, model=trained_model, link_predictor=trained_link_predictor)
+    
+    # --- VALIDAZIONE ---
+    test('dataset/MOLWENI/dev.json', 'embeddings/MPNet/MOLWENI_val_embeddings.json',
+            "plot_loss/GAT_MOLWENI_test.png", "MOLWENI Testing Loss", 
+            trained_model, trained_link_predictor) """
+    
+
+    
+    """ test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json',
+            "../../plot_loss/GAT_STAC_test.png", "STAC Testing Loss", trained_model, trained_link_predictor) """
 
     # validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
-    predict('../../dataset/MINECRAFT/VAL_all.json', '../../embeddings/MPNet/MINECRAFT_val_embeddings.json', trained_model, trained_link_predictor)
+    # predict('../../dataset/MINECRAFT/VAL_all.json', '../../embeddings/MPNet/MINECRAFT_val_embeddings.json', trained_model, trained_link_predictor)
     # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
 

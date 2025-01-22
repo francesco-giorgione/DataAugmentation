@@ -428,32 +428,33 @@ if __name__ == "__main__":
         embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
         edges_path='dataset/MINECRAFT/TRAIN_307_bert.json'
     )
-    test_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
-        edges_path='dataset/MINECRAFT/TEST_133.json'
-    )
     val_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_val_embeddings.json',
         edges_path='dataset/MINECRAFT/VAL_all.json',
         nome_dataset= "MINECRAFT",
         isValidation= True
     )
+    test_dag = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
+        edges_path='dataset/MINECRAFT/TEST_133.json'
+    )
     """
 
     train_dag = CustomEduDataset(
-        embeddings_path='../../embeddings/MPNet/MOLWENI_training_embeddings.json',
-        edges_path='../../dataset/MOLWENI/train.json'
-    )
-    test_dag = CustomEduDataset(
-        embeddings_path='../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
-        edges_path='../../dataset/MOLWENI/test.json'
+        embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
+        edges_path='dataset/MOLWENI/train.json'
     )
     val_dag = CustomEduDataset(
-        embeddings_path='../../embeddings/MPNet/MOLWENI_val_embeddings.json',
-        edges_path='../../dataset/MOLWENI/dev.json',
+        embeddings_path='embeddings/MPNet/MOLWENI_val_embeddings.json',
+        edges_path='dataset/MOLWENI/dev.json',
         nome_dataset= "MOLWENI",
         isValidation= True
     )
+    test_dag = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
+        edges_path='dataset/MOLWENI/test.json'
+    )
+    
 
     """
         Il DataLoader gestisce la divisione del dataset in batch, per migliorare l'efficienza 

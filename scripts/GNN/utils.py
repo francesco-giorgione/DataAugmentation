@@ -30,14 +30,14 @@ def save_models(model, link_predictor, path):
         'model_state_dict': model.state_dict(),
         'link_predictor_state_dict': link_predictor.state_dict()
     }, path)
-    print(f"Modelli salvati in {path}")
+    # print(f"Modelli salvati in {path}")
 
 
 def load_models(path):
     model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
     link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
 
-    checkpoint = torch.load(path, map_location=torch.device('cpu'))  # Usa 'cuda' se hai una GPU
+    checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=True)  # Usa 'cuda' se hai una GPU
     model.load_state_dict(checkpoint['model_state_dict'])
     link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
 

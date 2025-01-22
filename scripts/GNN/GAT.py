@@ -5,21 +5,21 @@ from torch_geometric.nn import GATConv
 import torch.optim as optim
 
 class GATLinkPrediction(nn.Module):
-    def __init__(self, embedding_dimension, hidden_channels, num_layers, heads=1):
+    def __init__(self, embedding_dimension, hidden_channels, num_layers, dropout = 0.6, heads=1):
         super(GATLinkPrediction, self).__init__()
 
         # Lista dei layer GAT
         self.layers = nn.ModuleList()
 
         # Primo layer: trasformazione del word embedding iniziale in una rappresentazione nascosta
-        self.layers.append(GATConv(embedding_dimension, hidden_channels, heads=heads, concat=True, dropout=0.6))
+        self.layers.append(GATConv(embedding_dimension, hidden_channels, heads=heads, concat=True, dropout=dropout))
 
         # Layer intermedi
         for _ in range(num_layers - 2):
-            self.layers.append(GATConv(hidden_channels * heads, hidden_channels, heads=heads, concat=True, dropout=0.6))
+            self.layers.append(GATConv(hidden_channels * heads, hidden_channels, heads=heads, concat=True, dropout=dropout))
 
         # Ultimo layer: produce embedding finali, senza concatenazione
-        self.layers.append(GATConv(hidden_channels * heads, hidden_channels, heads=1, concat=False, dropout=0.6))
+        self.layers.append(GATConv(hidden_channels * heads, hidden_channels, heads=1, concat=False, dropout=dropout))
 
     def forward(self, data):
         # 'data.x' è il tensore contenente i word embeddings dei nodi (es. parole)
