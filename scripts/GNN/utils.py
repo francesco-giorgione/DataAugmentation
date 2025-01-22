@@ -83,7 +83,7 @@ def super_new_get_edges(all_dialogues, dialogue_index):
 def eval_metrics(pos_test_pred, neg_test_pred):
     preds = torch.cat([pos_test_pred, neg_test_pred], dim=0)
     labels = torch.cat([torch.ones_like(pos_test_pred), torch.zeros_like(neg_test_pred)], dim=0)
-    threshold = 0.6
+    threshold = 0.5
     preds_bin = (preds > threshold).float()
 
     accuracy = accuracy_score(labels.cpu(), preds_bin.cpu())
@@ -180,3 +180,14 @@ def get_target_node(name_dataset, graph):
     best_node = max(standard_scores, key=standard_scores.get)
     return best_node, standard_scores
 
+
+def get_all_rels(dialogue_json, target_node):
+    in_rels, out_rels = [], []
+
+    for rel in dialogue_json['relations']:
+        if rel['y'] == target_node:
+            in_rels.append(rel['x'])
+        elif rel['x'] == target_node:
+            out_rels.append(rel['y'])
+
+    return in_rels, out_rels
