@@ -25,6 +25,13 @@ def create_embeddings(dialogue_edus_list):
     return embeddings_edu_list
 
 
+def create_one_embedding(edu):
+    model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+    embedding = model.encode(edu, show_progress_bar=False)
+
+    return embedding
+
+
 def save_embeddings(embeddings_edu_list, filename):
     
     # Crea la directory se non esiste
@@ -51,7 +58,7 @@ def main():
     #                      "STAC_testing", "MOLWENI_testing", "MINECRAFT_testing101", "MINECRAFT_testing133",
     #                      "MOLWENI_val", "MINECRAFT_val32", "MINECRAFT_val100"]
 
-    dataset_name_list = ["MINECRAFT_training", "MINECRAFT_testing133"]
+    dataset_name_list = ["MINECRAFT_val"]
 
     for dataset_name in dataset_name_list:
         
@@ -61,7 +68,7 @@ def main():
 
         edus_list = get_dialogue_edus_list(data)
 
-        print(f"Numero di dialoghi del dataset " + dataset_name + f": : {len(edus_list)}")
+        # print(f"Numero di dialoghi del dataset " + dataset_name + f": : {len(edus_list)}")
         #print(edus_list[:5])
 
         embeddings_edu_list = create_embeddings(edus_list)

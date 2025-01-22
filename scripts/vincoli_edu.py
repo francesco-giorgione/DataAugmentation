@@ -127,17 +127,13 @@ def get_filepath(dataset_name):
         file_path = "dataset/STAC/test_subindex.json"
     elif dataset_name == "MOLWENI_testing":
         file_path = "dataset/MOLWENI/test.json"
-    elif dataset_name == "MINECRAFT_testing101":
-        file_path = "dataset/MINECRAFT/TEST_101_bert.json"
-    elif dataset_name == "MINECRAFT_testing133":
+    elif dataset_name == "MINECRAFT_testing":
         file_path = "dataset/MINECRAFT/TEST_133.json"
 
     elif dataset_name == "MOLWENI_val":
         file_path = "dataset/MOLWENI/dev.json"
-    elif dataset_name == "MINECRAFT_val32":
-        file_path = "dataset/MINECRAFT/DEV_32_bert.json"
-    elif dataset_name == "MINECRAFT_val100":
-        file_path = "dataset/MINECRAFT/VAL_100_bert.json"
+    elif dataset_name == "MINECRAFT_val":
+        file_path = "dataset/MINECRAFT/VAL_all.json"
 
     return file_path
 

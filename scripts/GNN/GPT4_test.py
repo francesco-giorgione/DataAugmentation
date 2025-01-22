@@ -4,16 +4,15 @@ import re
 from get_edu import *
 from vincoli_edu import *
 import random
+from MPNet_embedding import *
 
-
-client = OpenAI(api_key="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")
+# client = OpenAI(api_key="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")
 
 # Usando l'API gpt4-all
-# client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
+client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
 
 
 def get_response(prompt):
-
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
@@ -62,10 +61,10 @@ def generate_precise_prompt(edus, relationships, missing_edu):
         [f"[EDU{rel[0]+1}] -> [EDU{rel[1]+1}]: {rel[2]}" for rel in remapped_relationships]
     )
 
-    print(subgraph_edus)
-    print(subgraph_edus_text)
-    print(subgraph_relationships)
-    print(subgraph_relationships_text)
+    # print(subgraph_edus)
+    # print(subgraph_edus_text)
+    # print(subgraph_relationships)
+    # print(subgraph_relationships_text)
 
     relationship_types_text = """
     ### Relationship Types:
@@ -141,8 +140,50 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     return prompt
 
 
-if __name__ == '__main__':
+def get_new_edu(data, dialogue_index, dataset_name):
+    graph = crea_grafo_da_json([data[dialogue_index]])
+    target_node = get_edu_from_DAG(
+        dataset_name,
+        graph)[0]
 
+    print(f'Chosen node {target_node} in dialogue {dialogue_index}')
+    subgraph = get_subgraph(target_node, graph)
+
+    edus_list = []
+    relations_list = []
+
+    for node, data in subgraph.nodes(data=True):
+        edus_list.append([node, data.get('text')])
+
+    for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
+        relations_list.append((source, target, type.get('relationship')))
+
+    missing_edu = target_node
+    prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+
+    try:
+        # print('Producing response...')
+        response = get_response(prompt)
+        # print("Pipeline executed successfully.")
+    except Exception as e:
+        print("Error occurred:")
+        print(e)
+
+    output = response.choices[0].message.content
+    # Rimuove solo i caratteri ' all'inizio e alla fine
+    new_edu = output.strip("'")
+
+    print(f'Old EDU: {data["text"]}')
+    print(f'New EDU: {new_edu}')
+
+    return new_edu, target_node
+
+
+def get_new_edu_emb(new_edu):
+    return create_one_embedding(new_edu)
+
+
+if __name__ == '__main__':
     dataset_name_list = ["STAC_training"]
 
     for dataset_name in dataset_name_list:
@@ -150,40 +191,9 @@ if __name__ == '__main__':
     
         data = load_data(file_path)
 
-        # Farlo per ogni dialogo del dataset
-        graph = crea_grafo_da_json([data[1]])
+        # for i, dialogue in enumerate(data):
+            # graph = crea_grafo_da_json([dialogue])
 
-        # Aggiungere metodo di scelta nodo da sostituire
-        target_node = random.choice(list(graph.nodes))
-
-        print(target_node)
-
-        subgraph = get_subgraph(target_node, graph)
-
-        edus_list = []
-        relations_list = []
-
-        for node, data in subgraph.nodes(data=True):
-            edus_list.append([node, data.get('text')])
-
-        
-        for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
-            relations_list.append((source, target, type.get('relationship')))
-
-        print(edus_list)
-        print(relations_list)
-
-        missing_edu = target_node
-
-        prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
-
-        print(prompt)
-
-        try:
-            print('Producing response...')
-            response = get_response(prompt)
-            print("Pipeline executed successfully.")
-            print(response.choices[0].message.content)
-        except Exception as e:
-            print("Error occurred:")
-            print(e)
+        dialogue_index = 0
+        new_edu = get_new_edu(data, dialogue_index)
+        embedding_new_edu = create_one_embedding(new_edu)

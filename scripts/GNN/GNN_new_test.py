@@ -9,6 +9,11 @@ from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderK
 import random
 from utils import *
 from GraphSAGE import plot_loss
+import sys
+import os
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+from GPT4_test import get_new_edu_emb, get_new_edu
 
 
 
@@ -263,7 +268,7 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
 
 def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, link_predictor, threshold=0.5):
     new_embs = old_embs
-    new_embs[target_node] = new_edu_emb
+    new_embs[target_node] = torch.tensor(new_edu_emb, dtype=torch.float32)
 
     edge_index = super_new_get_edges([dialogue_json], 0)
     removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
@@ -278,6 +283,7 @@ def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, lin
     in_rels, out_rels = get_all_rels(dialogue_json, target_node)
 
     to_predict_edges = []
+    print(f'In_rels: {in_rels}, Out_rels: {out_rels}')
 
     for rel in in_rels:
         emb_src = node_embs[rel]
@@ -290,44 +296,46 @@ def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, lin
         to_predict_edges.append((emb_src, emb_dst))
 
     for edge in to_predict_edges:
-        print('edge:', edge)
         prob = link_predictor(edge[0], edge[1])
-        print('prob:', prob)
+        print('Predicted prob:', prob)
 
 
 def predict(dataset_filename, embs_filename, model, link_predictor, target_node=None, new_edu_emb=None):
     all_dialogues = load_data(dataset_filename)
     all_embs = load_data(embs_filename)
     n = len(all_dialogues)
-    dialogue_index = 0
+    dialogue_index = 11
+
+    new_edu, target_node = get_new_edu(all_dialogues, dialogue_index, dataset_name='MINECRAFT')
+    new_edu_emb = get_new_edu_emb(new_edu)
+    # print('new_edu_emb:', new_edu_emb)
 
     predict_worker(
-        all_dialogues[0],
+        all_dialogues[dialogue_index],
         torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
-        target_node=3,
-        new_edu_emb=torch.tensor([i for i in range(768)], dtype=torch.float),
+        target_node=target_node,
+        new_edu_emb=new_edu_emb,
         model=model,
         link_predictor=link_predictor
     )
 
 
 if __name__ == '__main__':
-    file_path = 'pretrained_models_MOLWENI.pth'
-    # trained_model, trained_link_predictor = load_models(file_path)
+    file_path = 'pretrained_models_MINECRAFT.pth'
+    trained_model, trained_link_predictor = load_models(file_path)
 
-    trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json', 
-                        "embeddings/MPNet/MOLWENI_training_embeddings.json", "plot_loss/GAT_MOLWENI_train.png", "MOLWENI Training Loss", num_epochs=60, model=None, link_predictor=None)
-    
-    test('dataset/MOLWENI/test.json', 'embeddings/MPNet/MOLWENI_testing_embeddings.json', 
-            "plot_loss/GAT_MOLWENI_test.png", "MOLWENI Testing Loss", trained_model, trained_link_predictor)
-    
-    """ test('dataset/STAC/test_subindex.json', 'embeddings/MPNet/STAC_testing_embeddings.json', 
-            "plot_loss/GAT_STAC_test.png", "STAC Testing Loss", trained_model, trained_link_predictor) """
+    # trained_model, trained_link_predictor = train('../../dataset/MOLWENI/train.json',
+    #                     "../../embeddings/MPNet/MOLWENI_training_embeddings.json", "../../plot_loss/GAT_MOLWENI_train.png", "MOLWENI Training Loss", num_epochs=60, model=None, link_predictor=None)
+    #
+    # test('../../dataset/MOLWENI/test.json', '../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
+    #         "../../plot_loss/GAT_MOLWENI_test.png", "MOLWENI Testing Loss", trained_model, trained_link_predictor)
+    #
+    # """ test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json',
+    #         "../../plot_loss/GAT_STAC_test.png", "STAC Testing Loss", trained_model, trained_link_predictor) """
 
     # validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
-    # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
-
+    predict('../../dataset/MINECRAFT/VAL_all.json', '../../embeddings/MPNet/MINECRAFT_val_embeddings.json', trained_model, trained_link_predictor)
     # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
 
