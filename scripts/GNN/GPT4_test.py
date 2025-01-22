@@ -1,15 +1,15 @@
 from openai import OpenAI
 import torch
 import re
-from get_edu import *
-from vincoli_edu import *
+from scripts.get_edu import *
+from scripts.vincoli_edu import *
 import random
-from MPNet_embedding import *
+from scripts.MPNet_embedding import *
 
-# client = OpenAI(api_key="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")
+client = OpenAI(api_key="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")
 
 # Usando l'API gpt4-all
-client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
 
 
 def get_response(prompt):
@@ -17,6 +17,7 @@ def get_response(prompt):
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         stream=False,
+        n= 3
     )
 
     return response
@@ -169,6 +170,10 @@ def get_new_edu(data, dialogue_index, dataset_name):
         print("Error occurred:")
         print(e)
 
+    for i, choice in enumerate(response.choices):
+        print(f"Risposta {i+1}:")
+        print(choice.message.content)
+
     output = response.choices[0].message.content
     # Rimuove solo i caratteri ' all'inizio e alla fine
     new_edu = output.strip("'")
@@ -195,5 +200,5 @@ if __name__ == '__main__':
             # graph = crea_grafo_da_json([dialogue])
 
         dialogue_index = 0
-        new_edu = get_new_edu(data, dialogue_index)
+        new_edu = get_new_edu(data, dialogue_index, dataset_name)
         embedding_new_edu = create_one_embedding(new_edu)
