@@ -283,9 +283,7 @@ def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, lin
     in_rels, out_rels = get_all_rels(dialogue_json, target_node)
 
     to_predict_edges = []
-
-    print('In_rels:', in_rels)
-    print('Out_rels:', out_rels)
+    print(f'In_rels: {in_rels}, Out_rels: {out_rels}')
 
     for rel in in_rels:
         emb_src = node_embs[rel]
@@ -299,17 +297,18 @@ def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, lin
 
     for edge in to_predict_edges:
         prob = link_predictor(edge[0], edge[1])
-        print('prob:', prob)
+        print('Predicted prob:', prob)
 
 
 def predict(dataset_filename, embs_filename, model, link_predictor, target_node=None, new_edu_emb=None):
     all_dialogues = load_data(dataset_filename)
     all_embs = load_data(embs_filename)
     n = len(all_dialogues)
-    dialogue_index = 3
+    dialogue_index = 11
 
-    new_edu, target_node = get_new_edu(all_dialogues, dialogue_index)
+    new_edu, target_node = get_new_edu(all_dialogues, dialogue_index, dataset_name='MINECRAFT')
     new_edu_emb = get_new_edu_emb(new_edu)
+    # print('new_edu_emb:', new_edu_emb)
 
     predict_worker(
         all_dialogues[dialogue_index],
@@ -322,7 +321,7 @@ def predict(dataset_filename, embs_filename, model, link_predictor, target_node=
 
 
 if __name__ == '__main__':
-    file_path = 'pretrained_models_MOLWENI.pth'
+    file_path = 'pretrained_models_MINECRAFT.pth'
     trained_model, trained_link_predictor = load_models(file_path)
 
     # trained_model, trained_link_predictor = train('../../dataset/MOLWENI/train.json',
@@ -336,8 +335,7 @@ if __name__ == '__main__':
 
     # validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
-    predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
-
+    predict('../../dataset/MINECRAFT/VAL_all.json', '../../embeddings/MPNet/MINECRAFT_val_embeddings.json', trained_model, trained_link_predictor)
     # predict('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
 
 
