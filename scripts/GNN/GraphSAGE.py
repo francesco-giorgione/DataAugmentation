@@ -7,20 +7,20 @@ import torch_geometric
 import torch.nn as nn
 import json
 import torch.nn.functional as F
-from torch.utils.data import DataLoader
+from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import negative_sampling
 from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from utils import save_models
+from utils import create_graph, filter_edge_index, get_target_node, save_models
 
 
 
 # creazione dataset per l'apertura dei DAG
 class CustomEduDataset(Dataset):
-    def __init__(self, embeddings_path, edges_path):
+    def __init__(self, embeddings_path, edges_path, nome_dataset = "", isValidation = False):
         # Embeddings dell'edu
         with open(embeddings_path, 'r', encoding='utf-8') as file:
             self.all_edu = json.load(file)
@@ -48,13 +48,20 @@ class CustomEduDataset(Dataset):
             # Edge positive
             pos_train_edge = [(rel['x'], rel['y']) for rel in self.all_dag[idx]['relations']]
             pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
+            removed_edges = torch.empty((2, 0), dtype=edge_index.dtype)
+
+            if isValidation:
+                graph = create_graph(self.all_dag[idx])
+                target_node = get_target_node(nome_dataset, graph)
+                removed_edges, edge_index = filter_edge_index(edge_index, target_node)
+                _, pos_train_edge = filter_edge_index(pos_train_edge, target_node)
 
             """
                 Ogni Grafo è rappresentato da un oggetto Data, contenente gli attributi 
                 node_emb (con il padding), edge_index e pos_train_edge.
                 L'id del grafo non ha subito una variazione dal file json.
             """
-            graph = Data(x=padded_emb, edge_index=edge_index, pos_train_edge=pos_train_edge)
+            graph = Data(x=tensor_edu, edge_index=edge_index, pos_train_edge=pos_train_edge, removed_edges=removed_edges)
             self.graphs.append(graph)
 
     def __len__(self):
@@ -151,17 +158,21 @@ class LinkPredictor(nn.Module):
         return torch.sigmoid(x)
 
 
-
-
 def plot_loss(loss_history, num_epochs, path, desc="Loss"):
     plt.figure(figsize=(8, 6))
-    plt.plot(range(1, num_epochs+1), loss_history, color='red', label='Training Loss')
+    plt.plot(range(1, num_epochs + 1), loss_history, color='red', label='Training Loss')
     plt.title(desc)
     plt.ylabel('Loss')
     plt.xlabel('Epochs')
-    plt.xticks(range(1, num_epochs+1))
     
-    # Calcolo del margine aggiuntivo (ad esempio il 10% sopra e sotto i valori min/max)
+    # Gestisci le etichette sull'asse x
+    if num_epochs > 30:
+        step = max(1, num_epochs // 5)  # Mostra circa 10 etichette
+        plt.xticks(range(1, num_epochs + 1, step))
+    else:
+        plt.xticks(range(1, num_epochs + 1))
+    
+    # Calcolo del margine aggiuntivo (10% sopra e sotto i valori min/max)
     min_loss = min(loss_history)
     max_loss = max(loss_history)
     margin = (max_loss - min_loss) * 0.1 + 2
@@ -275,11 +286,10 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer, path, desc
             progress_bar.set_postfix({'Loss': loss.item()})
 
     plot_loss(train_losses, num_epochs, path, desc)
-
     return sum(train_losses) / len(train_losses)
 
 
-def test(model, num_epochs, link_predictor, test_loader, threshold, path, desc):
+def test(model, link_predictor, test_loader, threshold, path, desc):
     model.eval()
     link_predictor.eval()
     test_losses = []
@@ -342,27 +352,12 @@ def test(model, num_epochs, link_predictor, test_loader, threshold, path, desc):
     print(f"Accuracy {accuracy}, Precision {precision}, Recall {recall}, Loss {loss}")
     return {"accuracy" : accuracy, "precision" : precision, "recall" : recall, "loss" : loss}
 
-    """ pos_pred = torch.cat(pos_pred, dim=0)
-    neg_pred = torch.cat(neg_pred, dim=0)
-    results = {}
-    for K in [20, 50, 100]:
-        evaluator.K = K #using the Evaluator function in the ogb.linkproppred package
-        test_hits = evaluator.eval({
-            'y_pred_pos': pos_pred,
-            'y_pred_neg': neg_pred,
-        })[f'hits@{K}']
-
-        results[f'Hits@{K}'] = test_hits
-
-
-    return results, sum(test_losses) / len(test_losses) """
-
 
 def load_models(path, num_layers):
-    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=768, num_layers=num_layers, dropout=0.6)
-    link_predictor = LinkPredictor(in_channels=768, hidden_channels=384, out_channels=1, num_layers=num_layers, dropout=0.6) 
+    model = GNNStack(input_dim=768, hidden_dim=384, output_dim=384, num_layers=num_layers, dropout=0.6)
+    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=num_layers, dropout=0.6) 
 
-    checkpoint = torch.load(path, map_location=torch.device('cpu'))  # Usa 'cuda' se hai una GPU
+    checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=True)  
     model.load_state_dict(checkpoint['model_state_dict'])
     link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
 
@@ -370,39 +365,95 @@ def load_models(path, num_layers):
     return model, link_predictor
 
 
+def validate(val_loader, model, link_predictor, threshold=0.5):
+    model.eval()
+    link_predictor.eval()
+    total_predictions = 0
+    total_correct_predictions = 0
+
+    with torch.no_grad(), tqdm(total=len(val_loader), desc="Validating") as progress_bar:
+        for i, batch in enumerate(val_loader):
+            curr_correct_prediction_counter = 0
+            node_emb = batch.x  # Embedding dei nodi (N, d)
+            edge_index = batch.edge_index.squeeze(1)  # Edge index (2, E)
+            removed_edges = batch.removed_edges  # Archi rimossi per validazione
+
+            # Salta batch vuoti
+            if node_emb.numel() == 0 or edge_index.numel() == 0:
+                progress_bar.update(1)
+                continue
+
+            node_emb = model(node_emb, edge_index)
+
+            for i in range(removed_edges.shape[1]):
+                emb_1 = node_emb[removed_edges[0, i]]
+                emb_2 = node_emb[removed_edges[1, i]]
+                # print(emb_1, emb_2)
+
+                prob = link_predictor(emb_1, emb_2)
+                # print(prob)
+
+                if prob >= threshold:
+                    curr_correct_prediction_counter += 1
+
+            progress_bar.update(1)
+            progress_bar.set_postfix({
+                'Correct Predictions': f"{curr_correct_prediction_counter}/{removed_edges.size(1)}"
+            })
+
+    # Calcola l'accuratezza complessiva
+    accuracy = total_correct_predictions / total_predictions if total_predictions > 0 else 0.0
+    print(f'Totale predizioni corrette: {total_correct_predictions}/{total_predictions} '
+          f'({accuracy * 100:.2f}%)')
+    
+    return accuracy
+
+
+
 if __name__ == "__main__":
     """
         Dataset che contiene tutte le edu per in dato DAG.
         ID_DAG = ID_ELEMENTO_DATASET
     """
-    train_edu = CustomEduDataset(
+    """ train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_training_embeddings.json',
         edges_path='dataset/STAC/train_subindex.json'
     )
-    test_edu = CustomEduDataset(
+    test_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_testing_embeddings.json',
         edges_path='dataset/STAC/test_subindex.json'
-    )
+    ) """
 
-    """ train_edu = CustomEduDataset(
+    """ train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
         edges_path='dataset/MINECRAFT/TRAIN_307_bert.json'
     )
-    test_edu = CustomEduDataset(
+    test_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
         edges_path='dataset/MINECRAFT/TEST_133.json'
     )
+    val_dag = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/MINECRAFT_val_embeddings.json',
+        edges_path='dataset/MINECRAFT/VAL_all.json',
+        nome_dataset= "MINECRAFT",
+        isValidation= True
+    )
     """
 
-    """ train_edu = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
-        edges_path='dataset/MOLWENI/train.json'
+    train_dag = CustomEduDataset(
+        embeddings_path='../../embeddings/MPNet/MOLWENI_training_embeddings.json',
+        edges_path='../../dataset/MOLWENI/train.json'
     )
-    test_edu = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
-        edges_path='dataset/MOLWENI/test.json'
-    ) """
-
+    test_dag = CustomEduDataset(
+        embeddings_path='../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
+        edges_path='../../dataset/MOLWENI/test.json'
+    )
+    val_dag = CustomEduDataset(
+        embeddings_path='../../embeddings/MPNet/MOLWENI_val_embeddings.json',
+        edges_path='../../dataset/MOLWENI/dev.json',
+        nome_dataset= "MOLWENI",
+        isValidation= True
+    )
 
     """
         Il DataLoader gestisce la divisione del dataset in batch, per migliorare l'efficienza 
@@ -410,21 +461,19 @@ if __name__ == "__main__":
         i dati in ogni epoca. Tale funzionalità è utile per il training, ma non per il test.
     """
     batch_size = 32
-    train_emb_loader = DataLoader(train_edu, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    test_emb_loader = DataLoader(test_edu, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    train_loader = DataLoader(train_dag, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    test_loader = DataLoader(test_dag, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    val_loader = DataLoader(val_dag, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 
-    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=768, num_layers=3, dropout=0.6)                          # MiniLM 384 - MPNet 768
-    link_predictor = LinkPredictor(in_channels=768, hidden_channels=384, out_channels=1, num_layers=3, dropout=0.6)     # MiniLM 128 - MPNet 384
+    model = GNNStack(input_dim=768, hidden_dim=384, output_dim=384, num_layers=3, dropout=0.6)                          # MiniLM 384 - MPNet 768
+    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=3, dropout=0.6)     # MiniLM 128 - MPNet 384
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
-    # model, link_predictor = load_models("pretrain_model/Molweni_30epc_3l_pretrained_models.pth", num_layers = 3)
-    train(model, 30, link_predictor, train_emb_loader, optimizer, path="plot_loss/GS_train.png", desc= "MOLWENI Training Loss")
+    model, link_predictor = load_models("../../pretrain_model/Molweni_30epc_3l_pretrained_models.pth", num_layers = 3)
+    #train(model, 10, link_predictor, train_loader, optimizer, path="plot_loss/GS_train.png", desc= "MOLWENI Training Loss")
     
-    save_models(model, link_predictor, 'pretrain_model/MOLWENI_30epc_3l_pretrained_models.pth')
+    # save_models(model, link_predictor, 'pretrain_model/MOLWENI_30epc_3l_pretrained_models.pth')
 
-    """ evaluator = Evaluator(name = 'ogbl-collab') # https://ogb.stanford.edu/docs/linkprop/
-
-    print(evaluator.expected_input_format) 
-    print(evaluator.expected_output_format)  """
-    test(model, 1, link_predictor, test_emb_loader, threshold=0.5, path="plot_loss/GS_test.png", desc= "MOLWENI Testing Loss")
+    # test(model, link_predictor, test_loader, threshold=0.5, path="plot_loss/GS_test.png", desc= "MOLWENI Testing Loss")
+    validate(val_loader, model, link_predictor, threshold=0.5)

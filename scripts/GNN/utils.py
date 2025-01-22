@@ -8,8 +8,6 @@ from GAT import GATLinkPrediction, LinkPredictorMLP
 import random
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 from torch.utils.data import Dataset
-from graph_builder import crea_grafo_da_json
-from get_edu import get_edu_from_DAG
 import networkx as nx
 
 
