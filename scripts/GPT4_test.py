@@ -1,10 +1,10 @@
 from openai import OpenAI
 import torch
 import re
-from scripts.get_edu import *
-from scripts.vincoli_edu import *
+from get_edu import *
+from vincoli_edu import *
 import random
-from scripts.MPNet_embedding import *
+from MPNet_embedding import *
 
 client = OpenAI(api_key="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")
 
@@ -109,7 +109,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
         else:
             print(f"La relazione '{relation_type}' NON è valida.")
 
-    print(relationships_prompt)
+    # print(relationships_prompt)
 
     # Prompt dettagliato
     prompt = f"""
@@ -165,7 +165,7 @@ def generate_precise_prompt(edus, relationships, missing_edu):
     return prompt
 
 
-def get_new_edu(data, dialogue_index, dataset_name):
+def get_new_edus(data, dialogue_index, dataset_name):
     graph = crea_grafo_da_json([data[dialogue_index]])
     target_node = get_edu_from_DAG(
         dataset_name,
@@ -186,7 +186,6 @@ def get_new_edu(data, dialogue_index, dataset_name):
     missing_edu = target_node
     prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
-    print(prompt)
 
     try:
         # print('Producing response...')
@@ -196,22 +195,25 @@ def get_new_edu(data, dialogue_index, dataset_name):
         print("Error occurred:")
         print(e)
 
-    for i, choice in enumerate(response.choices):
-        print(f"Risposta {i+1}:")
-        print(choice.message.content)
+    # for i, choice in enumerate(response.choices):
+    #     print(f"Risposta {i+1}:")
+    #     print(choice.message.content)
+    #
+    # output = response.choices[0].message.content
+    # # Rimuove solo i caratteri ' all'inizio e alla fine
+    # new_edu = output.strip("'")
 
-    output = response.choices[0].message.content
-    # Rimuove solo i caratteri ' all'inizio e alla fine
-    new_edu = output.strip("'")
+    new_edus = [c.message.content.strip("'") for c in response.choices]
 
     print(f'Old EDU: {data["text"]}')
-    print(f'New EDU: {new_edu}')
+    for i, edu in enumerate(new_edus, start=1):
+        print(f'New EDU {i}: {edu}')
 
-    return new_edu, target_node
+    return new_edus, target_node
 
 
-def get_new_edu_emb(new_edu):
-    return create_one_embedding(new_edu)
+def get_new_edus_emb(new_edus):
+    return [create_one_embedding(e) for e in new_edus]
 
 
 if __name__ == '__main__':
@@ -226,5 +228,5 @@ if __name__ == '__main__':
             # graph = crea_grafo_da_json([dialogue])
 
         dialogue_index = 0
-        new_edu = get_new_edu(data, dialogue_index, dataset_name)
+        new_edu = get_new_edus(data, dialogue_index, dataset_name)
         embedding_new_edu = create_one_embedding(new_edu)
