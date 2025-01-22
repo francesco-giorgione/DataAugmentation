@@ -274,9 +274,9 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
     return model, link_predictor
 
 
-def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, link_predictor, threshold=0.5):
+def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_predictor, threshold=0.5):
     new_embs = old_embs
-    new_embs[target_node] = torch.tensor(new_edu_emb, dtype=torch.float32)
+    new_embs[target_node] = torch.tensor(new_edus_emb, dtype=torch.float32)
 
     edge_index = super_new_get_edges([dialogue_json], 0)
     removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
@@ -308,24 +308,24 @@ def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, lin
         print('Predicted prob:', prob)
 
 
-def predict(dataset_filename, embs_filename, model, link_predictor, target_node=None, new_edu_emb=None):
-    all_dialogues = load_data(dataset_filename)
-    all_embs = load_data(embs_filename)
-    n = len(all_dialogues)
-    dialogue_index = 11
-
-    new_edu, target_node = get_new_edu(all_dialogues, dialogue_index, dataset_name='MINECRAFT')
-    new_edu_emb = get_new_edu_emb(new_edu)
-    # print('new_edu_emb:', new_edu_emb)
-
-    predict_worker(
-        all_dialogues[dialogue_index],
-        torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
-        target_node=target_node,
-        new_edu_emb=new_edu_emb,
-        model=model,
-        link_predictor=link_predictor
-    )
+# def predict(dataset_filename, embs_filename, model, link_predictor, target_node=None, new_edu_emb=None):
+#     all_dialogues = load_data(dataset_filename)
+#     all_embs = load_data(embs_filename)
+#     n = len(all_dialogues)
+#     dialogue_index = 11
+#
+#     new_edu, target_node = get_new_edu(all_dialogues, dialogue_index, dataset_name='MINECRAFT')
+#     new_edu_emb = get_new_edu_emb(new_edu)
+#     # print('new_edu_emb:', new_edu_emb)
+#
+#     predict_worker(
+#         all_dialogues[dialogue_index],
+#         torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
+#         target_node=target_node,
+#         new_edu_emb=new_edu_emb,
+#         model=model,
+#         link_predictor=link_predictor
+#     )
 
 
 if __name__ == '__main__':
