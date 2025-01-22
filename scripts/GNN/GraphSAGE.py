@@ -354,8 +354,8 @@ def test(model, link_predictor, test_loader, threshold, path, desc):
 
 
 def load_models(path, num_layers):
-    model = GNNStack(input_dim=768, hidden_dim=384, output_dim=384, num_layers=num_layers, dropout=0.6)
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=num_layers, dropout=0.6) 
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=768, num_layers=num_layers, dropout=0.6)
+    link_predictor = LinkPredictor(in_channels=768, hidden_channels=128, out_channels=1, num_layers=num_layers, dropout=0.6) 
 
     checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=True)  
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -466,8 +466,8 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dag, batch_size=1, shuffle=False, collate_fn=collate_fn)
 
 
-    model = GNNStack(input_dim=768, hidden_dim=384, output_dim=384, num_layers=3, dropout=0.6)                          # MiniLM 384 - MPNet 768
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=128, out_channels=1, num_layers=3, dropout=0.6)     # MiniLM 128 - MPNet 384
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=768, num_layers=3, dropout=0.6)                          # MiniLM 384 - MPNet 768
+    link_predictor = LinkPredictor(in_channels=768, hidden_channels=128, out_channels=1, num_layers=3, dropout=0.6)     # MiniLM 128 - MPNet 384
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
     model, link_predictor = load_models("../../pretrain_model/Molweni_30epc_3l_pretrained_models.pth", num_layers = 3)
