@@ -62,10 +62,10 @@ def generate_precise_prompt(edus, relationships, missing_edu):
         [f"[EDU{rel[0]+1}] -> [EDU{rel[1]+1}]: {rel[2]}" for rel in remapped_relationships]
     )
 
-    print(subgraph_edus)
-    print(subgraph_edus_text)
-    print(subgraph_relationships)
-    print(subgraph_relationships_text)
+    # print(subgraph_edus)
+    # print(subgraph_edus_text)
+    # print(subgraph_relationships)
+    # print(subgraph_relationships_text)
 
     relationship_types_text = """
     ### Relationship Types:
@@ -160,13 +160,13 @@ def get_new_edu(data, dialogue_index):
     for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
         relations_list.append((source, target, type.get('relationship')))
 
-    print(edus_list)
-    print(relations_list)
+    # print(edus_list)
+    # print(relations_list)
 
     missing_edu = target_node
     prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
 
-    print(prompt)
+    # print(prompt)
 
     try:
         print('Producing response...')
