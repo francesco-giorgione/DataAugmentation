@@ -15,12 +15,12 @@ def get_path_dataset(name_dataset):
 
 
 def get_best_relations(name_dataset):
-    if name_dataset == "STAC":
-        file = 'info_rel/STAC_rel.txt'
-    elif name_dataset == "MINECRAFT":
-        file = 'info_rel/MINECRAFT_rel.txt'
-    elif name_dataset == "MOLWENI":
-        file = 'info_rel/MOLWENI_rel.txt'
+    if 'STAC' in name_dataset:
+        file = '../../info_rel/STAC_rel.txt'
+    elif 'MINECRAFT' in name_dataset:
+        file = '../../info_rel/MINECRAFT_rel.txt'
+    elif 'MOLWENI' in name_dataset:
+        file = '../../info_rel/MOLWENI_rel.txt'
     else: 
         return []
     
@@ -40,6 +40,9 @@ def get_edu_from_DAG(name_dataset, graph):
         ritorna l'id della EDU che nel sottodialogo ha la frequenza 
         più alta di archi uscenti e archi entranti
     """
+
+
+
     best_rel = get_best_relations(name_dataset)
     standard_scores = {}
     
