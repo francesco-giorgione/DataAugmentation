@@ -11,31 +11,14 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from GPT4_test import get_new_edus_emb, get_new_edus, get_new_edus_gpt4all
 
 
-
-
-
 def save_all_new_edus(dataset_filename, out_file_path):
     all_dialogues = load_data(dataset_filename)
     all_new_edus = []
 
     for dialogue_index in range(len(all_dialogues)):
         print(f'Adding dialogue {dialogue_index} to file')
-        wait_time = 10
 
-        while True:
-            try:
-                new_edus, target_node = get_new_edus(all_dialogues, dialogue_index, dataset_name=dataset_filename)
-                break
-            except Exception as e:
-                wait_time += 20
-                print(f"Rate limit superato! Aspetto {wait_time}s prima di riprovare...")
-                time.sleep(wait_time)
-
-                os.makedirs(os.path.dirname(out_file_path), exist_ok=True)
-                with open(out_file_path, 'w', encoding='utf-8') as f:
-                    json.dump(all_new_edus, f)
-                    print(f'New edus saved in file until dialogue {dialogue_index - 1}')
-
+        new_edus, target_node = get_new_edus_gpt4all(all_dialogues, dialogue_index, dataset_name=dataset_filename)
         new_edus_emb = get_new_edus_emb(new_edus)
 
         curr_dict = dict()
@@ -52,6 +35,7 @@ def save_all_new_edus(dataset_filename, out_file_path):
     with open(out_file_path, 'w', encoding='utf-8') as f:
         json.dump(all_new_edus, f)
         print(f'New edus saved in file')
+
 
 
 def save_all_new_edus_batch(dataset_filename, out_file_path):
@@ -88,7 +72,7 @@ def save_all_new_edus_batch(dataset_filename, out_file_path):
         print(f'New edus saved in file')
 
 
-def choose_edus(dataset_filename, embs_filename, edus_file_path, trained_model, out_file_path):
+def choose_edus(dataset_filename, embs_filename, edus_file_path, trained_model, trained_link_predictor, out_file_path):
     all_dialogues = load_data(dataset_filename)
     all_embs = load_data(embs_filename)
     all_new_edus = load_data(edus_file_path)
@@ -149,12 +133,36 @@ def augment(dataset_filename, new_edus_file_path, out_file_path):
         print(f'Augmented dataset created successfully')
 
 
-class MyPipeline(Pipeline):
-    function_list = [save_all_new_edus, save_all_new_edus_batch, choose_edus, augment]
+class DataAugmentationPipeline:
+    def __init__(self, model_name, dataset_filename, trained_GNN, trained_link_predictor, all_new_edus_available=True):
+        self.model = None
+        self.model_name = model_name
+        self.dataset_filename = dataset_filename
+        self.trained_GNN = trained_GNN
+        self.trained_link_predictor = trained_link_predictor
+        self.all_new_edus_available = all_new_edus_available
 
-    def forward(self, model_name):
-        pass
+    def __call__(self):
+        if not self.all_new_edus_available:
+            save_all_new_edus(
+                dataset_filename=self.dataset_filename,
+                out_file_path=f'../../new_edus/{self.model_name}_new_edus.json'
+            )
 
+        choose_edus(
+            dataset_filename=self.dataset_filename,
+            embs_filename=f'../../embeddings/MPNet/{self.model_name}_training_embeddings.json',
+            edus_file_path=f'../../new_edus/{self.model_name}_new_edus.json',
+            trained_model=self.trained_GNN,
+            trained_link_predictor=trained_link_predictor,
+            out_file_path=f'../../new_edus/best/{self.model_name}_best_edus.json'
+        )
+
+        augment(
+            dataset_filename=self.dataset_filename,
+            new_edus_file_path=f'../../new_edus/best/{self.model_name}_best_edus.json',
+            out_file_path=f'../../augmented_datasets/{self.model_name}_augmented.json'
+        )
 
 
 if __name__ == '__main__':
@@ -188,12 +196,23 @@ if __name__ == '__main__':
     #     embs_filename=MOLWENI_embs_filename,
     #     edus_file_path=MOLWENI_edus_file_path,
     #     trained_model=trained_model,
+    #     trained_link_predictor=trained_link_predictor,
     #     out_file_path=MOLWENI_best_edus_file_path
     # )
+    #
+    # augment(
+    #     dataset_filename=MOLWENI_dataset_filename,
+    #     new_edus_file_path=MOLWENI_best_edus_file_path,
+    #     out_file_path=MOLWENI_augmented_path
+    # )
 
-    augment(
+    dataAugmenter = DataAugmentationPipeline(
+        model_name='MOLWENI',
         dataset_filename=MOLWENI_dataset_filename,
-        new_edus_file_path=MOLWENI_best_edus_file_path,
-        out_file_path=MOLWENI_augmented_path
+        trained_GNN=trained_model,
+        trained_link_predictor=trained_link_predictor,
+        all_new_edus_available=True
     )
+
+    dataAugmenter()
 
