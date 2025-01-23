@@ -2,12 +2,13 @@ import json
 from collections import Counter, defaultdict
 import matplotlib.pyplot as plt
 import networkx as nx
-from graph_builder import *
+from scripts.graph_builder import *
 
 
 def load_data(file_path):
     with open(file_path, 'r') as f:
         return json.load(f)
+    
 
 # Funzione per analizzare gli EDUs
 def get_all_edus_lengths(data):
@@ -129,7 +130,9 @@ def get_filepath(dataset_name):
         file_path = "dataset/MOLWENI/test.json"
     elif dataset_name == "MINECRAFT_testing":
         file_path = "dataset/MINECRAFT/TEST_133.json"
-
+    
+    elif dataset_name == "STAC_val":
+        file_path = "dataset/STAC/dev.json"
     elif dataset_name == "MOLWENI_val":
         file_path = "dataset/MOLWENI/dev.json"
     elif dataset_name == "MINECRAFT_val":
@@ -140,7 +143,7 @@ def get_filepath(dataset_name):
 
 def main():
     
-    dataset_name_list = ["STAC_training", "MINECRAFT_training", "MOLWENI_training"]
+    dataset_name_list = ["STAC_val"]
 
     for dataset_name in dataset_name_list:
         file_path = get_filepath(dataset_name)
