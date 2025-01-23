@@ -419,6 +419,10 @@ if __name__ == "__main__":
         embeddings_path='embeddings/MPNet/STAC_training_embeddings.json',
         edges_path='dataset/STAC/train_subindex.json'
     )
+    val_dag = CustomEduDataset(
+        embeddings_path='embeddings/MPNet/STAC_val_embeddings.json',
+        edges_path='dataset/STAC/dev.json'
+    )
     test_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_testing_embeddings.json',
         edges_path='dataset/STAC/test_subindex.json'
@@ -474,5 +478,5 @@ if __name__ == "__main__":
     
     # save_models(model, link_predictor, 'pretrain_model_GS/Minecraft_pretrained_models_1.pth')
 
-    test(model, link_predictor, val_loader, threshold=0.7, path="plot_loss/GS_Minecraft_test.png", desc= "MINECRAFT Validation Loss")
+    test(model, link_predictor, val_loader, threshold=0.6, path="plot_loss/GS_Minecraft_test.png", desc= "MINECRAFT Validation Loss")
     # validate(val_loader, model, link_predictor, threshold=0.5)

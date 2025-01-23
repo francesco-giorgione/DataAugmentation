@@ -133,7 +133,7 @@ def old_test(dataset_filename, embs_filename, model, link_predictor, batch_size=
     print(f'Accuracy: {accuracy:.3f}, Precision: {precision:.3f}, Recall: {recall:.3f}')
 
 
-def test(dataset_filename, embs_filename, loss_path, loss_desc, model, link_predictor, batch_size=50):
+def test(dataset_filename, embs_filename, loss_path, loss_desc, model, link_predictor, batch_size=50, threshold = 0.5):
     total_accuracy, total_precision, total_recall = 0, 0, 0
     pos_preds, neg_preds = [], []
     batch_losses = []
@@ -167,7 +167,7 @@ def test(dataset_filename, embs_filename, loss_path, loss_desc, model, link_pred
 
     pos_preds = torch.cat(pos_preds, dim=0)
     neg_preds = torch.cat(neg_preds, dim=0)
-    accuracy, precision, recall = eval_metrics(pos_preds, neg_preds)
+    accuracy, precision, recall = eval_metrics(pos_preds, neg_preds, threshold = threshold)
     print(f'Accuracy: {accuracy}, Precision: {precision}, Recall: {recall}')
     plot_loss(batch_losses, len(batch_losses), loss_path, loss_desc)
 
@@ -312,32 +312,46 @@ def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_pred
 if __name__ == '__main__':
     
     trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=3, dropout=0.5, heads=32)
-    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.5)    
-    # trained_model, trained_link_predictor = load_models(file_path)
+    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.5)   
+    # file_path = 'pretrain_model_GAT/pretrained_models_MOLWENI.pth'
+    # trained_model, trained_link_predictor = load_models(file_path, trained_model, trained_link_predictor)
+
+    # STAC    
+    """ file_path = 'pretrained_models_STAC.pth'
+    trained_model, trained_link_predictor = train('dataset/STAC/train_subindex.json',
+                        "embeddings/MPNet/STAC_training_embeddings.json", 
+                        "plot_loss/GAT_STAC_train.png", "STAC Training Loss", 
+                        num_epochs=10, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
+    
+    # --- VALIDAZIONE ---
+    test('dataset/STAC/dev.json', 'embeddings/MPNet/STAC_val_embeddings.json',
+            "plot_loss/GAT_STAC_test.png", "STAC Validation Loss", 
+            trained_model, trained_link_predictor, batch_size=32) """
+
 
     # MINECRAFT
-    file_path = 'pretrained_models_MINECRAFT.pth'
+    """ file_path = 'pretrained_models_MINECRAFT.pth'
     trained_model, trained_link_predictor = train('dataset/MINECRAFT/TRAIN_307_bert.json',
                         "embeddings/MPNet/MINECRAFT_training_embeddings.json", 
                         "plot_loss/GAT_MINECRAFT_train4.png", "MINECRAFT Training Loss", 
                         num_epochs=30, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
-    
+
     # --- VALIDAZIONE ---
     test('dataset/MINECRAFT/VAL_all.json', 'embeddings/MPNet/MINECRAFT_val_embeddings.json',
             "plot_loss/GAT_MINECRAFT_test4.png", "MINECRAFT Validation Loss", 
-            trained_model, trained_link_predictor, batch_size=32)
+            trained_model, trained_link_predictor, batch_size=32, threshold = 0.6)"""
 
     # MOLWENI    
-    """ file_path = 'pretrained_models_MOLWENI.pth'
+    file_path = 'pretrained_models_MOLWENI.pth'
     trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json',
                         "embeddings/MPNet/MOLWENI_training_embeddings.json", 
-                        "plot_loss/GAT_MOLWENI_train1.png", "MOLWENI Training Loss", 
+                        "plot_loss/GAT_MOLWENI_train2.png", "MOLWENI Training Loss", 
                         num_epochs=10, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
     
     # --- VALIDAZIONE ---
     test('dataset/MOLWENI/dev.json', 'embeddings/MPNet/MOLWENI_val_embeddings.json',
-            "plot_loss/GAT_MOLWENI_test1.png", "MOLWENI Validation Loss", 
-            trained_model, trained_link_predictor, batch_size=32)  """
+            "plot_loss/GAT_MOLWENI_test2.png", "MOLWENI Validation Loss", 
+            trained_model, trained_link_predictor, batch_size=32) 
     
 
     

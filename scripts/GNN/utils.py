@@ -34,10 +34,7 @@ def save_models(model, link_predictor, path):
     # print(f"Modelli salvati in {path}")
 
 
-def load_models(path):
-    model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
-    link_predictor = LinkPredictorMLP(in_channels=256, hidden_channels=256, out_channels=1, num_layers=4, dropout=0.5)
-
+def load_models(path, model, link_predictor):
     checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=True)  # Usa 'cuda' se hai una GPU
     model.load_state_dict(checkpoint['model_state_dict'])
     link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
@@ -81,10 +78,9 @@ def super_new_get_edges(all_dialogues, dialogue_index):
                         dtype=torch.long)
 
 
-def eval_metrics(pos_test_pred, neg_test_pred):
+def eval_metrics(pos_test_pred, neg_test_pred, threshold = 0.5):
     preds = torch.cat([pos_test_pred, neg_test_pred], dim=0)
     labels = torch.cat([torch.ones_like(pos_test_pred), torch.zeros_like(neg_test_pred)], dim=0)
-    threshold = 0.5
     preds_bin = (preds > threshold).float()
 
     accuracy = accuracy_score(labels.cpu(), preds_bin.cpu())
