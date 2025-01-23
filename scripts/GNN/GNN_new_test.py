@@ -144,7 +144,7 @@ def test(dataset_filename, embs_filename, loss_path, loss_desc, model, link_pred
     num_samples = min(batch_size, n)
     sampled_dialogues = random.sample(range(n), num_samples)
     test_loder = DataLoader([i for i in range(n)], batch_size=batch_size, shuffle=True)
-    with tqdm(total=len(test_loder), desc="Validating") as progress_bar:
+    with tqdm(total=len(test_loder), desc="Validation") as progress_bar:
         for i_batch, sampled_dialogues in enumerate(test_loder, start=1):
             dialogue_losses = []
 
@@ -311,36 +311,33 @@ def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_pred
 
 if __name__ == '__main__':
     
-    trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=2, dropout=0.5, heads=4)
-    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=2, dropout=0.5)    
+    trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=3, dropout=0.5, heads=32)
+    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.5)    
     # trained_model, trained_link_predictor = load_models(file_path)
-
 
     # MINECRAFT
     file_path = 'pretrained_models_MINECRAFT.pth'
     trained_model, trained_link_predictor = train('dataset/MINECRAFT/TRAIN_307_bert.json',
                         "embeddings/MPNet/MINECRAFT_training_embeddings.json", 
-                        "plot_loss/GAT_MINECRAFT_train.png", "MINECRAFT Training Loss", 
-                        num_epochs=10, batch_size=32, learning_rate=0.01, model=trained_model, link_predictor=trained_link_predictor)
+                        "plot_loss/GAT_MINECRAFT_train4.png", "MINECRAFT Training Loss", 
+                        num_epochs=30, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
     
     # --- VALIDAZIONE ---
     test('dataset/MINECRAFT/VAL_all.json', 'embeddings/MPNet/MINECRAFT_val_embeddings.json',
-            "plot_loss/GAT_MINECRAFT_test.png", "MINECRAFT Testing Loss", 
-            trained_model, trained_link_predictor)
-    
+            "plot_loss/GAT_MINECRAFT_test4.png", "MINECRAFT Validation Loss", 
+            trained_model, trained_link_predictor, batch_size=32)
 
-    # MOLWENI
-    """ 
-    file_path = 'pretrained_models_MOLWENI.pth'
+    # MOLWENI    
+    """ file_path = 'pretrained_models_MOLWENI.pth'
     trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json',
                         "embeddings/MPNet/MOLWENI_training_embeddings.json", 
-                        "plot_loss/GAT_MOLWENI_train.png", "MOLWENI Training Loss", 
-                        num_epochs=1, model=trained_model, link_predictor=trained_link_predictor)
+                        "plot_loss/GAT_MOLWENI_train1.png", "MOLWENI Training Loss", 
+                        num_epochs=10, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
     
     # --- VALIDAZIONE ---
     test('dataset/MOLWENI/dev.json', 'embeddings/MPNet/MOLWENI_val_embeddings.json',
-            "plot_loss/GAT_MOLWENI_test.png", "MOLWENI Testing Loss", 
-            trained_model, trained_link_predictor) """
+            "plot_loss/GAT_MOLWENI_test1.png", "MOLWENI Validation Loss", 
+            trained_model, trained_link_predictor, batch_size=32)  """
     
 
     
