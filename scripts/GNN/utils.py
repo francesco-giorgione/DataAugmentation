@@ -9,6 +9,7 @@ import random
 from sklearn.metrics import accuracy_score, precision_score, recall_score
 from torch.utils.data import Dataset
 import networkx as nx
+from statistics import mean
 
 
 def load_data(dataset_filename):
@@ -193,5 +194,15 @@ def get_all_rels(dialogue_json, target_node):
     return in_rels, out_rels
 
 
-def get_best_new_edus(new_edus):
-    pass
+def get_best_new_edu_index(dialogue_probs):
+    filtered_dialogue_probs = [
+        probs if all(p >= 0.5 for p in probs) else [-1]
+        for probs in dialogue_probs
+    ]
+
+    if len(filtered_dialogue_probs) == 0:
+        filtered_dialogue_probs = probs
+
+    best_new_edu_index = max(range(len(filtered_dialogue_probs)), key=lambda i: mean(filtered_dialogue_probs[i]))
+    print('best_new_edu_index:', best_new_edu_index)
+    return best_new_edu_index
