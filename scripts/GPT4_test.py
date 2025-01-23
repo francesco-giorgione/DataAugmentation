@@ -6,10 +6,19 @@ from vincoli_edu import *
 import random
 from MPNet_embedding import *
 
-client = OpenAI(api_key="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")
+# client = OpenAI(api_key="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")
 
 # Usando l'API gpt4-all
 # client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-IeOj4y3qEhbNFblgYpwhcUOHImM1DStIi6L", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-eIS6lO1ZHWs7XCD24lTxR5k5dWrsNsEai6y", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-5UFK4uftVxD857EJ3NSdAXWIMedLTU9Stnh", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-aSzdXjOFgGlg64Z7i1CjCL5qXHF3WP72oOR", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-v46sGFCdhj6d5AP6pQSmDTszAAcmNxDpSkr", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-dNBfm3lK4ZHABQmGOmLxNVbMBeBvIp5DZzV", base_url="https://api.gpt4-all.xyz/v1")
+client = OpenAI(api_key="g4a-bKeS8JvQiSrnUFyIKKJrYcZNHbuDvNv75pv", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-wv93UpiCmIsQ6bx4GSDFdsfXysCHevSnegf", base_url="https://api.gpt4-all.xyz/v1")
+# client = OpenAI(api_key="g4a-efCvQW5V9nF7UiDJo1Usu4i3tSQtgnTdauT", base_url="https://api.gpt4-all.xyz/v1")
 
 
 def get_response(prompt):
@@ -17,7 +26,7 @@ def get_response(prompt):
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": prompt}],
         stream=False,
-        n = 3
+        # n = 3
     )
 
     return response
@@ -195,6 +204,50 @@ def get_new_edus(data, dialogue_index, dataset_name):
         print("Error occurred:")
         print(e)
 
+    new_edus = [c.message.content.strip("'") for c in response.choices]
+
+    print(f'Old EDU: {data["text"]}')
+    for i, edu in enumerate(new_edus, start=1):
+        print(f'New EDU {i}: {edu}')
+
+    return new_edus, target_node
+
+
+def get_new_edus_gpt4all(data, dialogue_index, dataset_name):
+    graph = crea_grafo_da_json([data[dialogue_index]])
+    target_node = get_edu_from_DAG(
+        dataset_name,
+        graph)[0]
+
+    print(f'Chosen node {target_node} in dialogue {dialogue_index}')
+    subgraph = get_subgraph(target_node, graph)
+
+    edus_list = []
+    relations_list = []
+
+    for node, data in subgraph.nodes(data=True):
+        edus_list.append([node, data.get('text')])
+
+    for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
+        relations_list.append((source, target, type.get('relationship')))
+
+    missing_edu = target_node
+    prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+
+    # Numero di risposte da generare
+    n = 3
+    responses_list = []
+
+    try:
+        # print('Producing response...')
+        for i in range(n):
+            response = get_response(prompt)
+            responses_list.append(response)
+            
+    except Exception as e:
+        print("Error occurred:")
+        print(e)
+
     # for i, choice in enumerate(response.choices):
     #     print(f"Risposta {i+1}:")
     #     print(choice.message.content)
@@ -202,12 +255,17 @@ def get_new_edus(data, dialogue_index, dataset_name):
     # output = response.choices[0].message.content
     # # Rimuove solo i caratteri ' all'inizio e alla fine
     # new_edu = output.strip("'")
-
-    new_edus = [c.message.content.strip("'") for c in response.choices]
+    new_edus = []
 
     print(f'Old EDU: {data["text"]}')
-    for i, edu in enumerate(new_edus, start=1):
-        print(f'New EDU {i}: {edu}')
+
+    for response in responses_list:
+        
+        new_edu = response.choices[0].message.content.strip("'")
+        new_edus.append(new_edu)
+
+        for i, edu in enumerate(new_edus, start=1):
+            print(f'New EDU {i}: {edu}')
 
     return new_edus, target_node
 
@@ -228,5 +286,5 @@ if __name__ == '__main__':
             # graph = crea_grafo_da_json([dialogue])
 
         dialogue_index = 0
-        new_edu = get_new_edus(data, dialogue_index, dataset_name)
+        new_edu = get_new_edus_gpt4all(data, dialogue_index, dataset_name)
         embedding_new_edu = create_one_embedding(new_edu)

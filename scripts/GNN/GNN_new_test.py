@@ -1,12 +1,9 @@
-import json
 import torch
 from statistics import mean
 from torch_geometric.utils import negative_sampling
 from torch_geometric.loader import DataLoader
-import torch.nn.functional as F
 from torch_geometric.data import Data
 from tqdm import tqdm
-from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictorMLP
 import random
 from utils import *
 from GraphSAGE import plot_loss
@@ -14,8 +11,6 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-#from GPT4_test import get_new_edu_emb, get_new_edu
-
 
 
 def test_worker(model, predictor, emb, edge_index, pos_test_edge):
@@ -274,9 +269,9 @@ def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100,
     return model, link_predictor
 
 
-def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, link_predictor, threshold=0.5):
+def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_predictor, threshold=0.5):
     new_embs = old_embs
-    new_embs[target_node] = torch.tensor(new_edu_emb, dtype=torch.float32)
+    new_embs[target_node] = torch.tensor(new_edus_emb, dtype=torch.float32)
 
     edge_index = super_new_get_edges([dialogue_json], 0)
     removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
@@ -303,29 +298,15 @@ def predict_worker(dialogue_json, old_embs, target_node, new_edu_emb, model, lin
         emb_dst = node_embs[rel]
         to_predict_edges.append((emb_src, emb_dst))
 
+    predicted_probs_for_edges = []
     for edge in to_predict_edges:
-        prob = link_predictor(edge[0], edge[1])
-        print('Predicted prob:', prob)
+        edge_prob = link_predictor(edge[0], edge[1])
+        print('Predicted prob:', edge_prob)
+        predicted_probs_for_edges.append(edge_prob.item())
 
 
-def predict(dataset_filename, embs_filename, model, link_predictor, target_node=None, new_edu_emb=None):
-    all_dialogues = load_data(dataset_filename)
-    all_embs = load_data(embs_filename)
-    n = len(all_dialogues)
-    dialogue_index = 11
+    return mean(predicted_probs_for_edges)
 
-    new_edu, target_node = get_new_edu(all_dialogues, dialogue_index, dataset_name='MINECRAFT')
-    new_edu_emb = get_new_edu_emb(new_edu)
-    # print('new_edu_emb:', new_edu_emb)
-
-    predict_worker(
-        all_dialogues[dialogue_index],
-        torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
-        target_node=target_node,
-        new_edu_emb=new_edu_emb,
-        model=model,
-        link_predictor=link_predictor
-    )
 
 
 if __name__ == '__main__':
