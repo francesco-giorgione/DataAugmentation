@@ -298,9 +298,15 @@ def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_pred
         emb_dst = node_embs[rel]
         to_predict_edges.append((emb_src, emb_dst))
 
+    predicted_probs_for_edges = []
     for edge in to_predict_edges:
-        prob = link_predictor(edge[0], edge[1])
-        print('Predicted prob:', prob)
+        edge_prob = link_predictor(edge[0], edge[1])
+        print('Predicted prob:', edge_prob)
+        predicted_probs_for_edges.append(edge_prob.item())
+
+
+    return mean(predicted_probs_for_edges)
+
 
 
 if __name__ == '__main__':
