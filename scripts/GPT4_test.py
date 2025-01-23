@@ -270,6 +270,63 @@ def get_new_edus_gpt4all(data, dialogue_index, dataset_name):
     return new_edus, target_node
 
 
+def get_new_edus_gpt4all(data, dialogue_index, dataset_name):
+    graph = crea_grafo_da_json([data[dialogue_index]])
+    target_node = get_edu_from_DAG(
+        dataset_name,
+        graph)[0]
+
+    print(f'Chosen node {target_node} in dialogue {dialogue_index}')
+    subgraph = get_subgraph(target_node, graph)
+
+    edus_list = []
+    relations_list = []
+
+    for node, data in subgraph.nodes(data=True):
+        edus_list.append([node, data.get('text')])
+
+    for source, target, type in subgraph.edges(data=True):  # Include gli attributi dell'arco
+        relations_list.append((source, target, type.get('relationship')))
+
+    missing_edu = target_node
+    prompt = generate_precise_prompt(edus_list, relations_list, missing_edu)
+
+    # Numero di risposte da generare
+    n = 3
+    responses_list = []
+
+    try:
+        # print('Producing response...')
+        for i in range(n):
+            response = get_response(prompt)
+            responses_list.append(response)
+            
+    except Exception as e:
+        print("Error occurred:")
+        print(e)
+
+    # for i, choice in enumerate(response.choices):
+    #     print(f"Risposta {i+1}:")
+    #     print(choice.message.content)
+    #
+    # output = response.choices[0].message.content
+    # # Rimuove solo i caratteri ' all'inizio e alla fine
+    # new_edu = output.strip("'")
+    new_edus = []
+
+    print(f'Old EDU: {data["text"]}')
+
+    for response in responses_list:
+        
+        new_edu = response.choices[0].message.content.strip("'")
+        new_edus.append(new_edu)
+
+        for i, edu in enumerate(new_edus, start=1):
+            print(f'New EDU {i}: {edu}')
+
+    return new_edus, target_node
+
+
 def get_new_edus_emb(new_edus):
     return [create_one_embedding(e) for e in new_edus]
 
