@@ -311,8 +311,8 @@ def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_pred
 
 if __name__ == '__main__':
     
-    trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=3, dropout=0.5, heads=32)
-    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.5)   
+    trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=2, dropout=0.5, heads=32)
+    trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=2, dropout=0.5)   
     # file_path = 'pretrain_model_GAT/pretrained_models_MOLWENI.pth'
     # trained_model, trained_link_predictor = load_models(file_path, trained_model, trained_link_predictor)
 
@@ -345,13 +345,15 @@ if __name__ == '__main__':
     file_path = 'pretrained_models_MOLWENI.pth'
     trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json',
                         "embeddings/MPNet/MOLWENI_training_embeddings.json", 
-                        "plot_loss/GAT_MOLWENI_train2.png", "MOLWENI Training Loss", 
-                        num_epochs=10, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
+                        "plot_loss/GAT_MOLWENI_train3.png", "MOLWENI Training Loss", 
+                        num_epochs=30, batch_size=32, learning_rate=0.001, model=trained_model, link_predictor=trained_link_predictor)
     
     # --- VALIDAZIONE ---
     test('dataset/MOLWENI/dev.json', 'embeddings/MPNet/MOLWENI_val_embeddings.json',
-            "plot_loss/GAT_MOLWENI_test2.png", "MOLWENI Validation Loss", 
+            "plot_loss/GAT_MOLWENI_test3.png", "MOLWENI Validation Loss", 
             trained_model, trained_link_predictor, batch_size=32) 
+
+    # https://wetransfer.com/downloads/c59aa1444ab338a3d0d3a6795001d54520250120085630/f861f29f6eecb9420f9200a55eb60dca20250120085654/532f49?t_exp=1737622590&t_lsid=518fc77e-d376-49ce-8c65-6160cc692afb&t_network=email&t_rid=ZW1haWx8Njc4ZTBmYmVjYzkyNDUzMjI0ODIzYjVk&t_s=download_link&t_ts=1737363414 
     
 
     
