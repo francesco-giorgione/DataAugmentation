@@ -1,12 +1,9 @@
-import json
 import torch
 from statistics import mean
 from torch_geometric.utils import negative_sampling
 from torch_geometric.loader import DataLoader
-import torch.nn.functional as F
 from torch_geometric.data import Data
 from tqdm import tqdm
-from GAT import GATLinkPrediction, LinkPredictionDecoder, LinkPredictionDecoderKernel, LinkPredictorMLP
 import random
 from utils import *
 from GraphSAGE import plot_loss
@@ -14,8 +11,6 @@ import sys
 import os
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-#from GPT4_test import get_new_edu_emb, get_new_edu
-
 
 
 def test_worker(model, predictor, emb, edge_index, pos_test_edge):
@@ -306,26 +301,6 @@ def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_pred
     for edge in to_predict_edges:
         prob = link_predictor(edge[0], edge[1])
         print('Predicted prob:', prob)
-
-
-# def predict(dataset_filename, embs_filename, model, link_predictor, target_node=None, new_edu_emb=None):
-#     all_dialogues = load_data(dataset_filename)
-#     all_embs = load_data(embs_filename)
-#     n = len(all_dialogues)
-#     dialogue_index = 11
-#
-#     new_edu, target_node = get_new_edu(all_dialogues, dialogue_index, dataset_name='MINECRAFT')
-#     new_edu_emb = get_new_edu_emb(new_edu)
-#     # print('new_edu_emb:', new_edu_emb)
-#
-#     predict_worker(
-#         all_dialogues[dialogue_index],
-#         torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
-#         target_node=target_node,
-#         new_edu_emb=new_edu_emb,
-#         model=model,
-#         link_predictor=link_predictor
-#     )
 
 
 if __name__ == '__main__':
