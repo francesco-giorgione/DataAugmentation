@@ -20,7 +20,7 @@ from utils import create_graph, filter_edge_index, get_target_node, save_models
 
 # creazione dataset per l'apertura dei DAG
 class CustomEduDataset(Dataset):
-    def __init__(self, embeddings_path, edges_path, nome_dataset = "", isValidation = False):
+    def __init__(self, embeddings_path, edges_path):
         # Embeddings dell'edu
         with open(embeddings_path, 'r', encoding='utf-8') as file:
             self.all_edu = json.load(file)
@@ -38,30 +38,25 @@ class CustomEduDataset(Dataset):
             embs = [item['embedding'] for item in edu]
             tensor_edu = torch.tensor(embs, dtype=torch.float)
 
-            # Padding degli embeddings
-            padding_size = self.max_nodes - len(tensor_edu)
-            padded_emb = torch.cat([tensor_edu, torch.zeros(padding_size, tensor_edu.size(1))], dim=0)
-
             # Edge index
             edge_index = self.get_edges(idx)
 
             # Edge positive
             pos_train_edge = [(rel['x'], rel['y']) for rel in self.all_dag[idx]['relations']]
             pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
-            removed_edges = torch.empty((2, 0), dtype=edge_index.dtype)
 
-            if isValidation:
+            """ if isValidation:
                 graph = create_graph(self.all_dag[idx])
                 target_node = get_target_node(nome_dataset, graph)
                 removed_edges, edge_index = filter_edge_index(edge_index, target_node)
-                _, pos_train_edge = filter_edge_index(pos_train_edge, target_node)
+                _, pos_train_edge = filter_edge_index(pos_train_edge, target_node) """
 
             """
                 Ogni Grafo è rappresentato da un oggetto Data, contenente gli attributi 
                 node_emb (con il padding), edge_index e pos_train_edge.
                 L'id del grafo non ha subito una variazione dal file json.
             """
-            graph = Data(x=tensor_edu, edge_index=edge_index, pos_train_edge=pos_train_edge, removed_edges=removed_edges)
+            graph = Data(x=tensor_edu, edge_index=edge_index, pos_train_edge=pos_train_edge)
             self.graphs.append(graph)
 
     def __len__(self):
