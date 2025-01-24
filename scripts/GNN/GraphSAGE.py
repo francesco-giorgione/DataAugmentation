@@ -244,7 +244,7 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer, path, desc
             progress_bar.update(1)
             progress_bar.set_postfix({'Loss': loss.item()})
 
-    plot_loss(train_losses, num_epochs, path, desc)
+    plot_loss(train_losses, num_epochs, path, desc, isTrain=True)
     return sum(train_losses) / len(train_losses)
 
 
@@ -427,15 +427,15 @@ if __name__ == "__main__":
     test_loader = DataLoader(test_dag, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
 
-    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=384, num_layers=4, dropout=0.3)                          # MiniLM 384 - MPNet 768
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=4, dropout=0.3)     # MiniLM 128 - MPNet 384
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=384, num_layers=3, dropout=0.3)                          # MiniLM 384 - MPNet 768
+    link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.3)     # MiniLM 128 - MPNet 384
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
-    model, link_predictor = load_models("pretrain_model_GS/Stac_pretrained_models.pth", num_layers = 4)
+    model, link_predictor = load_models("pretrain_model_GS/Minecraft_pretrained_models.pth", num_layers = 3)
     # train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_STAC_train.png", desc= "STAC Training Loss")
     
     # save_models(model, link_predictor, 'pretrain_model_GS/STAC_pretrained_models.pth')
 
-    # validate(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_STAC_val.png", desc= "STAC Validation Loss")
-    validate(model, link_predictor, test_loader, threshold=0.5, isTest=True)
+    validate(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_MINECRAFT_val.png", desc= "STAC Validation Loss")
+    # validate(model, link_predictor, test_loader, threshold=0.5, isTest=True)
     # validate(val_loader, model, link_predictor, threshold=0.5)

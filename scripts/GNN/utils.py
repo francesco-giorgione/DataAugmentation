@@ -207,12 +207,15 @@ def get_best_new_edu_index(dialogue_probs):
     return best_new_edu_index
 
 
-def plot_loss(loss_history, num_epochs, path, desc="Loss"):
+def plot_loss(loss_history, num_epochs, path, desc="Loss", isTrain = False):
     plt.figure(figsize=(8, 6))
     plt.plot(range(1, num_epochs + 1), loss_history, color='red', label='Training Loss')
     plt.title(desc)
     plt.ylabel('Loss')
-    plt.xlabel('Epochs')
+    if isTrain:
+        plt.xlabel('Epochs')
+    else:
+        plt.xlabel('Steps')
     
     # Gestisci le etichette sull'asse x
     if num_epochs > 30:
