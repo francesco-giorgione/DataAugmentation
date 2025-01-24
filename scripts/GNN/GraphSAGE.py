@@ -1,7 +1,5 @@
 import os
 from statistics import mean
-from matplotlib import pyplot as plt
-import matplotlib.ticker as mtick
 import torch
 import torch_geometric
 import torch.nn as nn
@@ -10,11 +8,10 @@ import torch.nn.functional as F
 from torch_geometric.loader import DataLoader
 from torch_geometric.data import Data, Batch
 from torch_geometric.utils import negative_sampling
-from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from utils import create_graph, filter_edge_index, get_target_node, save_models, get_all_rels
+from utils import filter_edge_index, save_models, get_all_rels, plot_loss
 
 
 
@@ -147,33 +144,6 @@ class LinkPredictor(nn.Module):
         return torch.sigmoid(x)
 
 
-def plot_loss(loss_history, num_epochs, path, desc="Loss"):
-    plt.figure(figsize=(8, 6))
-    plt.plot(range(1, num_epochs + 1), loss_history, color='red', label='Training Loss')
-    plt.title(desc)
-    plt.ylabel('Loss')
-    plt.xlabel('Epochs')
-    
-    # Gestisci le etichette sull'asse x
-    if num_epochs > 30:
-        step = max(1, num_epochs // 5)  # Mostra circa 10 etichette
-        plt.xticks(range(1, num_epochs + 1, step))
-    else:
-        plt.xticks(range(1, num_epochs + 1))
-    
-    # Calcolo del margine aggiuntivo (10% sopra e sotto i valori min/max)
-    min_loss = min(loss_history)
-    max_loss = max(loss_history)
-    margin = (max_loss - min_loss) * 0.1 + 2
-    plt.ylim(min_loss - margin, max_loss + margin)
-    
-    # Formatta i numeri dell'asse y con due cifre decimali
-    plt.gca().yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
-    
-    plt.margins(0.05)
-    plt.tight_layout()
-    plt.savefig(path)
-
 
 def eval_metrics(pos_test_pred, neg_test_pred, threshold = 0.5):
     print(f"pos_test_pred: {pos_test_pred}")
@@ -278,16 +248,16 @@ def train(model, num_epochs, link_predictor, train_loader, optimizer, path, desc
     return sum(train_losses) / len(train_losses)
 
 
-def test(model, link_predictor, test_loader, threshold, path, desc):
+def validate(model, link_predictor, loader, threshold, path="", desc="", isTest = False):
     model.eval()
     link_predictor.eval()
-    test_losses = []
+    val_loss = []
     pos_pred = []
     neg_pred = []
 
 
-    with torch.no_grad(), tqdm(total=len(test_loader), desc="Validation") as progress_bar:   # senza tener traccia dei gradienti
-        for i, batch in enumerate(test_loader):
+    with torch.no_grad(), tqdm(total=len(loader), desc="Validation") as progress_bar:   # senza tener traccia dei gradienti
+        for i, batch in enumerate(loader):
             # print(f"Batch {i}")
             # Attributi del batch
             node_emb = batch.x  # Embedding dei nodi (N, d)
@@ -324,27 +294,27 @@ def test(model, link_predictor, test_loader, threshold, path, desc):
                             Il modello dovrebbe dare basse probabilità per questi archi.
             """
 
-            loss = -torch.log(tmp_pos_pred + 1e-15).mean() - torch.log(1 - tmp_neg_pred + 1e-15).mean()
-
-            # Aggiungi la loss alla lista dei risultati
-            # print(f"Loss: {loss.item()}")
-            test_losses.append(loss.item())
             progress_bar.update(1)
-            progress_bar.set_postfix({'Loss': loss.item()})
+            if not isTest:
+                loss = -torch.log(tmp_pos_pred + 1e-15).mean() - torch.log(1 - tmp_neg_pred + 1e-15).mean()
+                val_loss.append(loss.item())
+                progress_bar.set_postfix({'Loss': loss.item()})
 
 
-    plot_loss(test_losses, len(test_loader), path, desc)
+    if not isTest:
+        loss = sum(val_loss) / len(val_loss)
+        plot_loss(val_loss, len(test_loader), path, desc)
+
     pos_pred = torch.cat(pos_pred, dim=0)
     neg_pred = torch.cat(neg_pred, dim=0)
     accuracy, precision, recall = eval_metrics(pos_pred, neg_pred, threshold=threshold)
-    loss = sum(test_losses) / len(test_losses)
-    print(f"Accuracy {accuracy}, Precision {precision}, Recall {recall}, Loss {loss}")
-    return {"accuracy" : accuracy, "precision" : precision, "recall" : recall, "loss" : loss}
+    print(f"Accuracy {accuracy}, Precision {precision}, Recall {recall}")
+    return {"accuracy" : accuracy, "precision" : precision, "recall" : recall}
 
 
 def load_models(path, num_layers):
-    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=384, num_layers=3, dropout=0.3)                          # MiniLM 384 - MPNet 768
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.3) 
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=384, num_layers=num_layers, dropout=0.3)                          # MiniLM 384 - MPNet 768
+    link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=num_layers, dropout=0.3) 
 
     checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=True)  
     model.load_state_dict(checkpoint['model_state_dict'])
@@ -398,49 +368,6 @@ def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_pred
     # return mean(predicted_probs_for_edges)
     return predicted_probs_for_edges
 
-
-def validate(val_loader, model, link_predictor, threshold=0.5):
-    model.eval()
-    link_predictor.eval()
-    total_predictions = 0
-    total_correct_predictions = 0
-
-    with torch.no_grad(), tqdm(total=len(val_loader), desc="Validating") as progress_bar:
-        for i, batch in enumerate(val_loader):
-            curr_correct_prediction_counter = 0
-            node_emb = batch.x  # Embedding dei nodi (N, d)
-            edge_index = batch.edge_index.squeeze(1)  # Edge index (2, E)
-            removed_edges = batch.removed_edges  # Archi rimossi per validazione
-
-            # Salta batch vuoti
-            if node_emb.numel() == 0 or edge_index.numel() == 0:
-                progress_bar.update(1)
-                continue
-
-            node_emb = model(node_emb, edge_index)
-
-            for i in range(removed_edges.shape[1]):
-                emb_1 = node_emb[removed_edges[0, i]]
-                emb_2 = node_emb[removed_edges[1, i]]
-                # print(emb_1, emb_2)
-
-                prob = link_predictor(emb_1, emb_2)
-                # print(prob)
-
-                if prob >= threshold:
-                    curr_correct_prediction_counter += 1
-
-            progress_bar.update(1)
-            progress_bar.set_postfix({
-                'Correct Predictions': f"{curr_correct_prediction_counter}/{removed_edges.size(1)}"
-            })
-
-    # Calcola l'accuratezza complessiva
-    accuracy = total_correct_predictions / total_predictions if total_predictions > 0 else 0.0
-    print(f'Totale predizioni corrette: {total_correct_predictions}/{total_predictions} '
-          f'({accuracy * 100:.2f}%)')
-    
-    return accuracy
 
 
 if __name__ == "__main__":
@@ -504,10 +431,11 @@ if __name__ == "__main__":
     link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=4, dropout=0.3)     # MiniLM 128 - MPNet 384
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
-    #model, link_predictor = load_models("pretrain_model_GS/Molweni_pretrained_models_1.pth", num_layers = 3)
-    train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_STAC_train.png", desc= "STAC Training Loss")
+    model, link_predictor = load_models("pretrain_model_GS/STAC_pretrained_models.pth", num_layers = 4)
+    # train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_STAC_train.png", desc= "STAC Training Loss")
     
-    save_models(model, link_predictor, 'pretrain_model_GS/STAC_pretrained_models.pth')
+    # save_models(model, link_predictor, 'pretrain_model_GS/STAC_pretrained_models.pth')
 
-    test(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_STAC_val.png", desc= "STAC Validation Loss")
+    # validate(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_STAC_val.png", desc= "STAC Validation Loss")
+    validate(model, link_predictor, test_loader, threshold=0.5, isTest=True)
     # validate(val_loader, model, link_predictor, threshold=0.5)
