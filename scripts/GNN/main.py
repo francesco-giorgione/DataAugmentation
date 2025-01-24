@@ -1,8 +1,9 @@
 from utils import *
-from GraphSAGE import *
+from GNN_new_test import *
 import openai
 import sys
 import os
+import copy
 import torch
 import json
 import time
@@ -122,9 +123,9 @@ def augment(dataset_filename, new_edus_file_path, out_file_path):
     for dialogue_index, dialogue_info in enumerate(new_edus):
         target_node = dialogue_info['target_node']
         new_edu = dialogue_info['new_edu']
-        new_dialogue = all_dialogues[dialogue_index]
+        new_dialogue = copy.deepcopy(all_dialogues[dialogue_index])
         new_dialogue['edus'][target_node]['text'] = new_edu
-        new_dialogue['id'] = n + dialogue_index
+        new_dialogue['id'] = f"{n + dialogue_index}"
         all_dialogues.append(new_dialogue)
 
     os.makedirs(os.path.dirname(out_file_path), exist_ok=True)
@@ -184,9 +185,11 @@ if __name__ == '__main__':
     STAC_augmented_path = '../../augmented_datasets/STAC_augmented.json'
     MOLWENI_augmented_path = '../../augmented_datasets/MOLWENI_augmented.json'
     MINECRAFT_augmented_path = '../../augmented_datasets/MINECRAFT_augmented.json'
-    trained_model, trained_link_predictor = load_models('../../pretrain_model_GS/Minecraft_pretrained_models_1.pth', num_layers=3)
+    # trained_model, trained_link_predictor = load_models('../../pretrain_model_GS/Minecraft_pretrained_models_1.pth', num_layers=3)
+    trained_model, trained_link_predictor = load_models('../../pretrain_model_GAT/pretrained_models_MINECRAFT.pth')
 
-    # save_all_new_edus_batch(
+
+# save_all_new_edus_batch(
     #     dataset_filename=MINECRAFT_dataset_filename,
     #     out_file_path=MINECRAFT_edus_file_path
     # )
