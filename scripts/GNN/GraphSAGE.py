@@ -428,7 +428,7 @@ if __name__ == "__main__":
         edges_path='dataset/STAC/test_subindex.json'
     ) """
 
-    train_dag = CustomEduDataset(
+    """ train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
         edges_path='dataset/MINECRAFT/TRAIN_307_bert.json'
     )
@@ -440,22 +440,20 @@ if __name__ == "__main__":
         embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
         edges_path='dataset/MINECRAFT/TEST_133.json'
     )
+    """
 
-
-    """ train_dag = CustomEduDataset(
+    train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
         edges_path='dataset/MOLWENI/train.json'
     )
     val_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_val_embeddings.json',
-        edges_path='dataset/MOLWENI/dev.json',
-        nome_dataset= "MOLWENI",
-        isValidation= True
+        edges_path='dataset/MOLWENI/dev.json'
     )
     test_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
         edges_path='dataset/MOLWENI/test.json'
-    ) """
+    )
     
 
     """
@@ -469,14 +467,14 @@ if __name__ == "__main__":
     val_loader = DataLoader(val_dag, batch_size=32, shuffle=False, collate_fn=collate_fn)
 
 
-    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=384, num_layers=3, dropout=0.3)                          # MiniLM 384 - MPNet 768
-    link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=3, dropout=0.3)     # MiniLM 128 - MPNet 384
+    model = GNNStack(input_dim=768, hidden_dim=768, output_dim=384, num_layers=4, dropout=0.3)                          # MiniLM 384 - MPNet 768
+    link_predictor = LinkPredictor(in_channels=384, hidden_channels=192, out_channels=1, num_layers=4, dropout=0.3)     # MiniLM 128 - MPNet 384
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
-    model, link_predictor = load_models("pretrain_model_GS/Minecraft_pretrained_models_1.pth", num_layers = 3)
-    # train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_Minecraft_train.png", desc= "MINECRAFT Training Loss")
+    #model, link_predictor = load_models("pretrain_model_GS/Molweni_pretrained_models_1.pth", num_layers = 3)
+    train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_MOLWENI_train2.png", desc= "MOLWENI Training Loss")
     
-    # save_models(model, link_predictor, 'pretrain_model_GS/Minecraft_pretrained_models_1.pth')
+    save_models(model, link_predictor, 'pretrain_model_GS/Molweni_pretrained_models.pth')
 
-    test(model, link_predictor, val_loader, threshold=0.6, path="plot_loss/GS_Minecraft_test.png", desc= "MINECRAFT Validation Loss")
+    test(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_MOLWENI_test2.png", desc= "MOLWENI Validation Loss")
     # validate(val_loader, model, link_predictor, threshold=0.5)

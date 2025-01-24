@@ -353,8 +353,6 @@ if __name__ == '__main__':
             "plot_loss/GAT_MOLWENI_test3.png", "MOLWENI Validation Loss", 
             trained_model, trained_link_predictor, batch_size=32) 
 
-    # https://wetransfer.com/downloads/2fb592bdcbf40f3b00b40c1f30c86bf620250123211816/77b616503cf72dbc30754350fe6ad84a20250123211828/d54fc0?t_exp=1737926296&t_lsid=50e04aa7-e772-4483-a51d-31ee5759f120&t_network=email&t_rid=ZW1haWx8Njc4ZTBmYmVjYzkyNDUzMjI0ODIzYjVk&t_s=download_link&t_ts=1737667108&utm_campaign=TRN_TDL_01&utm_source=sendgrid&utm_medium=email&trk=TRN_TDL_01 
-
     
     """ test('../../dataset/STAC/test_subindex.json', '../../embeddings/MPNet/STAC_testing_embeddings.json',
             "../../plot_loss/GAT_STAC_test.png", "STAC Testing Loss", trained_model, trained_link_predictor) """
