@@ -1,4 +1,5 @@
 import json
+from matplotlib import pyplot as plt
 import torch
 from torch_geometric.utils import negative_sampling
 from torch_geometric.loader import DataLoader
@@ -10,6 +11,8 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score
 from torch.utils.data import Dataset
 import networkx as nx
 from statistics import mean
+from matplotlib import pyplot as plt
+import matplotlib.ticker as mtick
 
 
 def load_data(dataset_filename):
@@ -202,3 +205,31 @@ def get_best_new_edu_index(dialogue_probs):
     best_new_edu_index = max(range(len(filtered_dialogue_probs)), key=lambda i: mean(filtered_dialogue_probs[i]))
     print('best_new_edu_index:', best_new_edu_index)
     return best_new_edu_index
+
+
+def plot_loss(loss_history, num_epochs, path, desc="Loss"):
+    plt.figure(figsize=(8, 6))
+    plt.plot(range(1, num_epochs + 1), loss_history, color='red', label='Training Loss')
+    plt.title(desc)
+    plt.ylabel('Loss')
+    plt.xlabel('Epochs')
+    
+    # Gestisci le etichette sull'asse x
+    if num_epochs > 30:
+        step = max(1, num_epochs // 5)  # Mostra circa 10 etichette
+        plt.xticks(range(1, num_epochs + 1, step))
+    else:
+        plt.xticks(range(1, num_epochs + 1))
+    
+    # Calcolo del margine aggiuntivo (10% sopra e sotto i valori min/max)
+    min_loss = min(loss_history)
+    max_loss = max(loss_history)
+    margin = (max_loss - min_loss) * 0.1 + 2
+    plt.ylim(min_loss - margin, max_loss + margin)
+    
+    # Formatta i numeri dell'asse y con due cifre decimali
+    plt.gca().yaxis.set_major_formatter(mtick.FormatStrFormatter('%.2f'))
+    
+    plt.margins(0.05)
+    plt.tight_layout()
+    plt.savefig(path)
