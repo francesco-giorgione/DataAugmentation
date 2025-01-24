@@ -14,7 +14,7 @@ from ogb.linkproppred import Evaluator
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from utils import create_graph, filter_edge_index, get_target_node, save_models
+from utils import create_graph, filter_edge_index, get_target_node, save_models, get_all_rels
 
 
 
@@ -44,12 +44,6 @@ class CustomEduDataset(Dataset):
             # Edge positive
             pos_train_edge = [(rel['x'], rel['y']) for rel in self.all_dag[idx]['relations']]
             pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
-
-            """ if isValidation:
-                graph = create_graph(self.all_dag[idx])
-                target_node = get_target_node(nome_dataset, graph)
-                removed_edges, edge_index = filter_edge_index(edge_index, target_node)
-                _, pos_train_edge = filter_edge_index(pos_train_edge, target_node) """
 
             """
                 Ogni Grafo è rappresentato da un oggetto Data, contenente gli attributi 
@@ -358,6 +352,51 @@ def load_models(path, num_layers):
 
     print(f"Modelli caricati da {path}")
     return model, link_predictor
+
+
+def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_predictor, threshold=0.5):
+    new_embs = old_embs
+    new_embs[target_node] = torch.tensor(new_edus_emb, dtype=torch.float32)
+
+    edges = [(rel['x'], rel['y']) for rel in dialogue_json['relations']]
+    lst1, lst2 = zip(*edges)
+    edge_index = torch.tensor([lst1, lst2], dtype=torch.long)
+
+    pos_train_edge = [(rel['x'], rel['y']) for rel in dialogue_json['relations']]
+    pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
+
+    removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
+    data = Data(x=old_embs, edge_index=filtered_edge_index, pos_train_edge=pos_train_edge)
+
+    # print('Target node', target_node)
+    # print('Edge index', edge_index)
+    # print('Removed index', removed_edge_index)
+    # print('Filtered index', filtered_edge_index)
+
+    node_embs = model(data.x, data.edge_index)
+    in_rels, out_rels = get_all_rels(dialogue_json, target_node)
+
+    to_predict_edges = []
+    print(f'In_rels: {in_rels}, Out_rels: {out_rels}')
+
+    for rel in in_rels:
+        emb_src = node_embs[rel]
+        emb_dst = node_embs[target_node]
+        to_predict_edges.append((emb_src, emb_dst))
+
+    for rel in out_rels:
+        emb_src = node_embs[target_node]
+        emb_dst = node_embs[rel]
+        to_predict_edges.append((emb_src, emb_dst))
+
+    predicted_probs_for_edges = []
+    for edge in to_predict_edges:
+        edge_prob = link_predictor(edge[0], edge[1]).item()
+        print('Predicted prob:', edge_prob)
+        predicted_probs_for_edges.append(edge_prob)
+
+    # return mean(predicted_probs_for_edges)
+    return predicted_probs_for_edges
 
 
 def validate(val_loader, model, link_predictor, threshold=0.5):
