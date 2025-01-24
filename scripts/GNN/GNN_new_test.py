@@ -346,6 +346,10 @@ if __name__ == '__main__':
     validate('dataset/MINECRAFT/VAL_all.json', 'embeddings/MPNet/MINECRAFT_val_embeddings.json', 
             trained_model, trained_link_predictor, batch_size=32, threshold = 0.6,
             loss_path = "plot_loss/GAT_MINECRAFT_test4.png", loss_desc = "MINECRAFT Validation Loss")"""
+    
+    # --- TESTING ---
+    """ validate('dataset/MINECRAFT/TEST_133.json', 'embeddings/MPNet/MINECRAFT_testing133_embeddings.json', 
+            trained_model, trained_link_predictor, batch_size=32, isTest=True) """
 
     # MOLWENI    
     """ file_path = 'pretrained_models_MOLWENI.pth'
@@ -358,6 +362,10 @@ if __name__ == '__main__':
     validate('dataset/MOLWENI/dev.json', 'embeddings/MPNet/MOLWENI_val_embeddings.json',
             trained_model, trained_link_predictor, batch_size = 32,
             loss_path = "plot_loss/GAT_MOLWENI_test3.png", loss_desc = "MOLWENI Validation Loss")  """
+    
+    # --- TESTING ---
+    """ validate('dataset/MOLWENI/test.json', 'embeddings/MPNet/MOLWENI_testing_embeddings.json', 
+            trained_model, trained_link_predictor, batch_size=32, isTest=True) """
     
 
     # link_validate('../../dataset/MOLWENI/dev.json', '../../embeddings/MPNet/MOLWENI_val_embeddings.json', trained_model, trained_link_predictor)
