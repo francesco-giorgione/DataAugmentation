@@ -1,5 +1,5 @@
-from GNN_new_test import *
 from utils import *
+from GraphSAGE import *
 import openai
 import sys
 import os
@@ -78,8 +78,8 @@ def choose_edus(dataset_filename, embs_filename, edus_file_path, trained_model, 
     all_new_edus = load_data(edus_file_path)
     new_edus = []
 
-    # for dialogue_index in range(len(all_new_edus)):
-    for dialogue_index in range(2):
+    for dialogue_index in range(len(all_new_edus)):
+    # for dialogue_index in range(2):
         target_node = all_new_edus[dialogue_index]['target_node']
         print(f'\nTarget node in dialogue {dialogue_index}: {target_node}')
         print('New edus:', all_new_edus[dialogue_index]['new_edus'])
@@ -184,7 +184,7 @@ if __name__ == '__main__':
     STAC_augmented_path = '../../augmented_datasets/STAC_augmented.json'
     MOLWENI_augmented_path = '../../augmented_datasets/MOLWENI_augmented.json'
     MINECRAFT_augmented_path = '../../augmented_datasets/MINECRAFT_augmented.json'
-    trained_model, trained_link_predictor = load_models(MOLWENI_trained_models_file_path)
+    trained_model, trained_link_predictor = load_models('../../pretrain_model_GS/Minecraft_pretrained_models_1.pth', num_layers=3)
 
     # save_all_new_edus_batch(
     #     dataset_filename=MINECRAFT_dataset_filename,
@@ -207,8 +207,8 @@ if __name__ == '__main__':
     # )
 
     dataAugmenter = DataAugmentationPipeline(
-        model_name='MOLWENI',
-        dataset_filename=MOLWENI_dataset_filename,
+        model_name='MINECRAFT',
+        dataset_filename=MINECRAFT_dataset_filename,
         trained_GNN=trained_model,
         trained_link_predictor=trained_link_predictor,
         all_new_edus_available=True
