@@ -217,6 +217,7 @@ def validate(dataset_filename, embs_filename, model, link_predictor, threshold=0
           f'({(total_correct_predictions / total_predictions) * 100:.2f}%)')
 
 
+
 def train(dataset_filename, embs_filename, loss_path, loss_desc, num_epochs=100, batch_size=50, learning_rate=0.001, model=None, link_predictor=None):
     if model is None:
         model = GATLinkPrediction(embedding_dimension=768, hidden_channels=256, num_layers=2, heads=16)
