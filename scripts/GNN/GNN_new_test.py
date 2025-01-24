@@ -314,7 +314,10 @@ if __name__ == '__main__':
     
     trained_model = GATLinkPrediction(embedding_dimension=768, hidden_channels=384, num_layers=2, dropout=0.5, heads=16)
     trained_link_predictor = LinkPredictorMLP(in_channels=384, hidden_channels=192, out_channels=1, num_layers=2, dropout=0.5)   
+    # file_path = 'pretrain_model_GAT/pretrained_models_STAC5.pth'
+    # file_path = 'pretrain_model_GAT/pretrained_models_MINECRAFT.pth'
     # file_path = 'pretrain_model_GAT/pretrained_models_MOLWENI.pth'
+    
     # trained_model, trained_link_predictor = load_models(file_path, trained_model, trained_link_predictor)
 
     # STAC    
@@ -336,7 +339,7 @@ if __name__ == '__main__':
 
 
     # MINECRAFT
-    """ file_path = 'pretrained_models_MINECRAFT.pth'
+    """ 
     trained_model, trained_link_predictor = train('dataset/MINECRAFT/TRAIN_307_bert.json',
                         "embeddings/MPNet/MINECRAFT_training_embeddings.json", 
                         "plot_loss/GAT_MINECRAFT_train4.png", "MINECRAFT Training Loss", 
@@ -352,7 +355,7 @@ if __name__ == '__main__':
             trained_model, trained_link_predictor, batch_size=32, isTest=True) """
 
     # MOLWENI    
-    """ file_path = 'pretrained_models_MOLWENI.pth'
+    """ 
     trained_model, trained_link_predictor = train('dataset/MOLWENI/train.json',
                         "embeddings/MPNet/MOLWENI_training_embeddings.json", 
                         "plot_loss/GAT_MOLWENI_train3.png", "MOLWENI Training Loss", 
