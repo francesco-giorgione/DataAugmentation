@@ -415,7 +415,7 @@ if __name__ == "__main__":
         Dataset che contiene tutte le edu per in dato DAG.
         ID_DAG = ID_ELEMENTO_DATASET
     """
-    """ train_dag = CustomEduDataset(
+    train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_training_embeddings.json',
         edges_path='dataset/STAC/train_subindex.json'
     )
@@ -426,7 +426,7 @@ if __name__ == "__main__":
     test_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/STAC_testing_embeddings.json',
         edges_path='dataset/STAC/test_subindex.json'
-    ) """
+    )
 
     """ train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
@@ -442,7 +442,7 @@ if __name__ == "__main__":
     )
     """
 
-    train_dag = CustomEduDataset(
+    """ train_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
         edges_path='dataset/MOLWENI/train.json'
     )
@@ -453,7 +453,7 @@ if __name__ == "__main__":
     test_dag = CustomEduDataset(
         embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
         edges_path='dataset/MOLWENI/test.json'
-    )
+    ) """
     
 
     """
@@ -472,9 +472,9 @@ if __name__ == "__main__":
 
     optimizer = torch.optim.Adam(list(model.parameters()) + list(link_predictor.parameters()), lr=0.0001)
     #model, link_predictor = load_models("pretrain_model_GS/Molweni_pretrained_models_1.pth", num_layers = 3)
-    train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_MOLWENI_train2.png", desc= "MOLWENI Training Loss")
+    train(model, 100, link_predictor, train_loader, optimizer, path="plot_loss/GS_STAC_train.png", desc= "STAC Training Loss")
     
-    save_models(model, link_predictor, 'pretrain_model_GS/Molweni_pretrained_models.pth')
+    save_models(model, link_predictor, 'pretrain_model_GS/STAC_pretrained_models.pth')
 
-    test(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_MOLWENI_test2.png", desc= "MOLWENI Validation Loss")
+    test(model, link_predictor, val_loader, threshold=0.5, path="plot_loss/GS_STAC_val.png", desc= "STAC Validation Loss")
     # validate(val_loader, model, link_predictor, threshold=0.5)
