@@ -443,7 +443,6 @@ def validate(val_loader, model, link_predictor, threshold=0.5):
     return accuracy
 
 
-
 if __name__ == "__main__":
     """
         Dataset che contiene tutte le edu per in dato DAG.
