@@ -7,7 +7,7 @@ i vincoli strutturali e semantici individuati sui dialoghi esistenti. La validaz
 dialoghi generati è implementata come un task di link prediction, eseguito tramite
 Graph Neural Network (GNN). L'obiettivo è di verificare che, per ogni nuovo dialogo, le
 relazioni tra unità del discorso (EDUs) siano preservate. I dialoghi che superano il processo
-di validazione vengono inseriti nel dataset aumentato. Infine, il task di _Dialogue Discourse Parsing as Generation_
+di validazione vengono inseriti nel dataset aumentato. Infine, il training di _Dialogue Discourse Parsing as Generation_
 (vedi https://github.com/chuyuanli/Seq2Seq-DDP)
 viene eseguito sul dataset di partenza e su quello aumentato, in modo da confrontare i risultati ottenuti
 e verificare se l'augmentation ha determinato un miglioramento delle performance.
