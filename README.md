@@ -61,7 +61,7 @@ l'effettuazione delle predizioni.
 - I nostri script per la costruzione e il training del link predictor sono in `scripts/GNN`.
 
 Nota: per sostituire le nostre implementazioni di GNN con una nuova implementazione, è essenziale che la classe
-implementata esponga un metodo `predict`, avente esattamente la firma delle nostre implementazioni.
+implementata esponga un metodo `predict`, avente esattamente la firma dei metodi forniti dalle nostre implementazioni.
 
 
 
