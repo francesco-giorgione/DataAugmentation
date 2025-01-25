@@ -51,7 +51,8 @@ Di seguito è riportata una breve descrizione del contenuto delle diverse path d
 ## Struttura della pipeline
 ![Descrizione dell'immagine](imgs/pipeline.png)
 
-La struttura della pipeline implementata è rappresentata nell'immagine. L'implementazione è indipendente
+La struttura della pipeline implementata è rappresentata nell'immagine. Lo script che consente di utilizzarla
+è `scripts/main.py`. L'implementazione è indipendente
 dal tipo di embedding, dal dataset da aumentare, nonché dalla GNN e dal link predictor addestrati per
 l'effettuazione delle predizioni.
 
