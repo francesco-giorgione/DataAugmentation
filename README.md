@@ -13,9 +13,43 @@ viene eseguito sul dataset di partenza e su quello aumentato, in modo da confron
 e verificare se l'augmentation ha determinato un miglioramento delle performance.
 
 
+## Organizzazione del progetto
+Di seguito è riportata una breve descrizione del contenuto delle diverse path del progetto.
+
+`augemented_datasets`: contiene le versioni aumentate dei dataset;
+
+`embeddings`: contiene gli embedding prodotti dai SentenceTransformers ed utilizzati nella pipeline;
+
+`graphic`: contiene le rappresentazioni grafiche di alcuni vincoli estratti dall'analisi dei dialoghi;
+
+`info_rel`: contiene le informazioni sulle relazioni più frequenti per ciascun dataset;
+
+`new_edus`: contiene le EDU generate tramite gli LLM;
+
+`plot_loss`: contiene i grafici di plot della loss ottenuta nelle fasi di training e validazione;
+
+`pretrain_model_GAT`: contiene i pesi delle Graph Attention Network (GAT) pre-addestrate sui rispettivi dataset;
+
+`pretrain_model_GS`: contiene i pesi delle GraphSAGE (GS) pre-addestrate sui rispettivi dataset;
+
+`scripts/constraints`: contiene gli script utilizzati per l'estrazione di vincoli sui dialoghi;
+
+`scripts/GNN`: contiene gli script per il training, la validazione, il testing e l'utilizzo della GNN e del link predictor;
+
+`scripts/LLM`: contiene gli script utilizzati per la generazione delle nuove EDU tramite gli LLM;
+
+`scripts/SentenceTransformers`: contiene gli script utilizzati per la produzione degli embedding delle EDU;
+
+`scripts/main.py`: contiene l'implementazione della pipeline e il codice per il suo utilizzo;
+
+`DataAugmentation_report.pdf`: è la documentazione del progetto.
 
 
 
+## Struttura della pipeline
+![Descrizione dell'immagine](imgs/pipeline.png)
+
+La struttura della pipeline implementata è rappresentata nell'immagine.
 
 
 
