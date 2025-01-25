@@ -1,24 +1,21 @@
 from openai import OpenAI
 import torch
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 import re
-from get_edu import *
-from vincoli_edu import *
+from scripts.LLM.get_edu import *
+from scripts.constraints.vincoli_edu import *
 import random
-from MPNet_embedding import *
+from scripts.SentenceTransformers.MPNet_embedding import *
+
 
 # client = OpenAI(api_key="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")
 
 # Usando l'API gpt4-all
-# client = OpenAI(api_key="g4a-5KHHrU4Ow3zoD3kPl1O8TJjNjjoh5aWTAid", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-IeOj4y3qEhbNFblgYpwhcUOHImM1DStIi6L", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-eIS6lO1ZHWs7XCD24lTxR5k5dWrsNsEai6y", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-5UFK4uftVxD857EJ3NSdAXWIMedLTU9Stnh", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-aSzdXjOFgGlg64Z7i1CjCL5qXHF3WP72oOR", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-v46sGFCdhj6d5AP6pQSmDTszAAcmNxDpSkr", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-dNBfm3lK4ZHABQmGOmLxNVbMBeBvIp5DZzV", base_url="https://api.gpt4-all.xyz/v1")
+# Token esaurito (DA MODIFICARE)
 client = OpenAI(api_key="g4a-bKeS8JvQiSrnUFyIKKJrYcZNHbuDvNv75pv", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-wv93UpiCmIsQ6bx4GSDFdsfXysCHevSnegf", base_url="https://api.gpt4-all.xyz/v1")
-# client = OpenAI(api_key="g4a-efCvQW5V9nF7UiDJo1Usu4i3tSQtgnTdauT", base_url="https://api.gpt4-all.xyz/v1")
+
 
 
 def get_response(prompt):

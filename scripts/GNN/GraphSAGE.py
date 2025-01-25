@@ -1,4 +1,6 @@
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from statistics import mean
 import torch
 import torch_geometric
@@ -11,7 +13,7 @@ from torch_geometric.utils import negative_sampling
 from torch.utils.data import Dataset
 from tqdm import tqdm
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from utils import filter_edge_index, save_models, get_all_rels, plot_loss
+from scripts.GNN.utils import filter_edge_index, save_models, get_all_rels, plot_loss
 
 
 
@@ -66,6 +68,7 @@ class CustomEduDataset(Dataset):
         return torch.tensor([lst1, lst2], dtype=torch.long)
 
 
+
 """
     La funzione collate_fn serve per combinare i dati per il DataLoader. Quindi, prende una lista di dati 
     (in questo caso, una lista di oggetti di tipo Data di PyTorch Geometric, ognuno rappresentante un grafo) 
@@ -114,6 +117,49 @@ class GNNStack(torch.nn.Module):
 
     def loss(self, pred, label):
         return F.nll_loss(pred, label)
+
+    def predict(selg, dialogue_json, old_embs, target_node, new_edus_emb, model, link_predictor, threshold=0.5):
+        new_embs = old_embs
+        new_embs[target_node] = torch.tensor(new_edus_emb, dtype=torch.float32)
+
+        edges = [(rel['x'], rel['y']) for rel in dialogue_json['relations']]
+        lst1, lst2 = zip(*edges)
+        edge_index = torch.tensor([lst1, lst2], dtype=torch.long)
+
+        pos_train_edge = [(rel['x'], rel['y']) for rel in dialogue_json['relations']]
+        pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
+
+        removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
+        data = Data(x=old_embs, edge_index=filtered_edge_index, pos_train_edge=pos_train_edge)
+
+        # print('Target node', target_node)
+        # print('Edge index', edge_index)
+        # print('Removed index', removed_edge_index)
+        # print('Filtered index', filtered_edge_index)
+
+        node_embs = model(data.x, data.edge_index)
+        in_rels, out_rels = get_all_rels(dialogue_json, target_node)
+
+        to_predict_edges = []
+        print(f'In_rels: {in_rels}, Out_rels: {out_rels}')
+
+        for rel in in_rels:
+            emb_src = node_embs[rel]
+            emb_dst = node_embs[target_node]
+            to_predict_edges.append((emb_src, emb_dst))
+
+        for rel in out_rels:
+            emb_src = node_embs[target_node]
+            emb_dst = node_embs[rel]
+            to_predict_edges.append((emb_src, emb_dst))
+
+        predicted_probs_for_edges = []
+        for edge in to_predict_edges:
+            edge_prob = link_predictor(edge[0], edge[1]).item()
+            print('Predicted prob:', edge_prob)
+            predicted_probs_for_edges.append(edge_prob)
+
+        return predicted_probs_for_edges
 
 
 # NN di Link Predictor
@@ -324,95 +370,49 @@ def load_models(path, num_layers):
     return model, link_predictor
 
 
-def predict(dialogue_json, old_embs, target_node, new_edus_emb, model, link_predictor, threshold=0.5):
-    new_embs = old_embs
-    new_embs[target_node] = torch.tensor(new_edus_emb, dtype=torch.float32)
-
-    edges = [(rel['x'], rel['y']) for rel in dialogue_json['relations']]
-    lst1, lst2 = zip(*edges)
-    edge_index = torch.tensor([lst1, lst2], dtype=torch.long)
-
-    pos_train_edge = [(rel['x'], rel['y']) for rel in dialogue_json['relations']]
-    pos_train_edge = torch.tensor(pos_train_edge, dtype=torch.long)
-
-    removed_edge_index, filtered_edge_index = filter_edge_index(edge_index, target_node)
-    data = Data(x=old_embs, edge_index=filtered_edge_index, pos_train_edge=pos_train_edge)
-
-    # print('Target node', target_node)
-    # print('Edge index', edge_index)
-    # print('Removed index', removed_edge_index)
-    # print('Filtered index', filtered_edge_index)
-
-    node_embs = model(data.x, data.edge_index)
-    in_rels, out_rels = get_all_rels(dialogue_json, target_node)
-
-    to_predict_edges = []
-    print(f'In_rels: {in_rels}, Out_rels: {out_rels}')
-
-    for rel in in_rels:
-        emb_src = node_embs[rel]
-        emb_dst = node_embs[target_node]
-        to_predict_edges.append((emb_src, emb_dst))
-
-    for rel in out_rels:
-        emb_src = node_embs[target_node]
-        emb_dst = node_embs[rel]
-        to_predict_edges.append((emb_src, emb_dst))
-
-    predicted_probs_for_edges = []
-    for edge in to_predict_edges:
-        edge_prob = link_predictor(edge[0], edge[1]).item()
-        print('Predicted prob:', edge_prob)
-        predicted_probs_for_edges.append(edge_prob)
-
-    # return mean(predicted_probs_for_edges)
-    return predicted_probs_for_edges
-
-
-
 if __name__ == "__main__":
     """
         Dataset che contiene tutte le edu per in dato DAG.
         ID_DAG = ID_ELEMENTO_DATASET
     """
     train_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/STAC_training_embeddings.json',
-        edges_path='dataset/STAC/train_subindex.json'
+        embeddings_path='../../embeddings/MPNet/STAC_training_embeddings.json',
+        edges_path='../../dataset/STAC/train_subindex.json'
     )
     val_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/STAC_val_embeddings.json',
-        edges_path='dataset/STAC/dev.json'
+        embeddings_path='../../embeddings/MPNet/STAC_val_embeddings.json',
+        edges_path='../../dataset/STAC/dev.json'
     )
     test_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/STAC_testing_embeddings.json',
-        edges_path='dataset/STAC/test_subindex.json'
+        embeddings_path='../../embeddings/MPNet/STAC_testing_embeddings.json',
+        edges_path='../../dataset/STAC/test_subindex.json'
     )
 
     """ train_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MINECRAFT_training_embeddings.json',
-        edges_path='dataset/MINECRAFT/TRAIN_307_bert.json'
+        embeddings_path='../../embeddings/MPNet/MINECRAFT_training_embeddings.json',
+        edges_path='../../dataset/MINECRAFT/TRAIN_307_bert.json'
     )
     val_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MINECRAFT_val_embeddings.json',
-        edges_path='dataset/MINECRAFT/VAL_all.json'
+        embeddings_path='../../embeddings/MPNet/MINECRAFT_val_embeddings.json',
+        edges_path='../../dataset/MINECRAFT/VAL_all.json'
     )
     test_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
-        edges_path='dataset/MINECRAFT/TEST_133.json'
+        embeddings_path='../../embeddings/MPNet/MINECRAFT_testing133_embeddings.json',
+        edges_path='../../dataset/MINECRAFT/TEST_133.json'
     )
     """
 
     """ train_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MOLWENI_training_embeddings.json',
-        edges_path='dataset/MOLWENI/train.json'
+        embeddings_path='../../embeddings/MPNet/MOLWENI_training_embeddings.json',
+        edges_path='../../dataset/MOLWENI/train.json'
     )
     val_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MOLWENI_val_embeddings.json',
-        edges_path='dataset/MOLWENI/dev.json'
+        embeddings_path='../../embeddings/MPNet/MOLWENI_val_embeddings.json',
+        edges_path='../../dataset/MOLWENI/dev.json'
     )
     test_dag = CustomEduDataset(
-        embeddings_path='embeddings/MPNet/MOLWENI_testing_embeddings.json',
-        edges_path='dataset/MOLWENI/test.json'
+        embeddings_path='../../embeddings/MPNet/MOLWENI_testing_embeddings.json',
+        edges_path='../../dataset/MOLWENI/test.json'
     ) """
     
 
