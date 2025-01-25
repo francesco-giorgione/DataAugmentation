@@ -18,6 +18,8 @@ Di seguito è riportata una breve descrizione del contenuto delle diverse path d
 
 `augemented_datasets`: contiene le versioni aumentate dei dataset;
 
+`datasets`: contiene i dataset di partenza;
+
 `embeddings`: contiene gli embedding prodotti dai SentenceTransformers ed utilizzati nella pipeline;
 
 `graphic`: contiene le rappresentazioni grafiche di alcuni vincoli estratti dall'analisi dei dialoghi;
@@ -49,9 +51,17 @@ Di seguito è riportata una breve descrizione del contenuto delle diverse path d
 ## Struttura della pipeline
 ![Descrizione dell'immagine](imgs/pipeline.png)
 
-La struttura della pipeline implementata è rappresentata nell'immagine.
+La struttura della pipeline implementata è rappresentata nell'immagine. L'implementazione è indipendente
+dal tipo di embedding, dal dataset da aumentare, nonché dalla GNN e dal link predictor addestrati per
+l'effettuazione delle predizioni.
 
+- I nostri script per la costruzione degli embedding sono in `scripts/SentenceTransformers`.
+- I dataset che abbiamo usato sono in `datasets`.
+- I nostri script per la costruzione e il training di GAT e GS sono in `scripts/GNN`.
+- I nostri script per la costruzione e il training del link predictor sono in `scripts/GNN`.
 
+Nota: per sostituire le nostre implementazioni di GNN con una nuova implementazione, è essenziale che la classe
+implementata esponga un metodo `predict`, avente esattamente la firma delle nostre implementazioni.
 
 
 
