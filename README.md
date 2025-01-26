@@ -16,7 +16,7 @@ e verificare se l'augmentation ha determinato un miglioramento delle performance
 ## Organizzazione del progetto
 Di seguito è riportata una breve descrizione del contenuto delle diverse path del progetto.
 
-`augemented_datasets`: contiene le versioni aumentate dei dataset;
+`augmented_datasets`: contiene le versioni aumentate dei dataset;
 
 `datasets`: contiene i dataset di partenza;
 
