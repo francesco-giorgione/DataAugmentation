@@ -4,6 +4,9 @@ import seaborn as sns
 import networkx as nx
 import json
 from collections import defaultdict
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 
 import numpy as np
 
@@ -50,7 +53,7 @@ def create_stochastic_matrix(dict_relazioni, name_dataset):
 
     # Salvataggio dell'immagine
     plt.tight_layout()
-    plt.savefig(f"graphic/{name_dataset}_freq_matrix.png")
+    plt.savefig(f"../../graphic/{name_dataset}_freq_matrix.png")
 
     # Calcolo della matrice delle probabilità condizionate
     row_sums = matrix.sum(axis=1).replace(0, np.nan)  # Sostituisce eventuali somme zero con NaN per evitare divisioni per zero
@@ -74,35 +77,35 @@ def create_stochastic_matrix(dict_relazioni, name_dataset):
     ax.set_ylabel("y (Source State)")
 
     plt.tight_layout()
-    plt.savefig(f"graphic/{name_dataset}_stochastic_matrix.png")
+    plt.savefig(f"../../graphic/{name_dataset}_stochastic_matrix.png")
 
 
 
 if __name__ == "__main__":
-    path_file1 = ['dataset/STAC/train_subindex.json']
-    path_file2 = ['dataset/MOLWENI/train.json']
-    path_file3 = ['dataset/MINECRAFT/TRAIN_307_bert.json']
+    path_file1 = ['../../dataset/STAC/train_subindex.json']
+    path_file2 = ['../../dataset/MOLWENI/train.json']
+    path_file3 = ['../../dataset/MINECRAFT/TRAIN_307_bert.json']
     dict_relazioni1 = defaultdict(int)
     dict_relazioni2 = defaultdict(int)
     dict_relazioni3 = defaultdict(int)
 
-    
+
     # STAC
     for file in path_file1:
         dict_relazioni1 = frequenze_relazioni(file, dict_relazioni1)
-    
+
     create_stochastic_matrix(dict_relazioni1, 'STAC')
 
     # MOLWENI
     for file in path_file2:
         dict_relazioni2 = frequenze_relazioni(file, dict_relazioni2)
-    
+
     create_stochastic_matrix(dict_relazioni2, 'MOLWENI')
 
     # MINECRAFT
     for file in path_file3:
         dict_relazioni3 = frequenze_relazioni(file, dict_relazioni3)
-    
+
     create_stochastic_matrix(dict_relazioni3, 'MINECRAFT')
 
 

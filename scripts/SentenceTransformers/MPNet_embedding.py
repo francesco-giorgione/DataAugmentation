@@ -1,7 +1,10 @@
 from sentence_transformers import SentenceTransformer, SimilarityFunction
-from vincoli_edu import *
-import json
+import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from scripts.constraints.vincoli_edu import *
+import json
+
 
 def create_embeddings(dialogue_edus_list):
 

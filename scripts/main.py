@@ -1,15 +1,15 @@
-from utils import *
-from GNN_new_test import *
-import openai
 import sys
 import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
+from scripts.GNN.GAT import *
+from scripts.GNN.GraphSAGE import *
+from scripts.GNN.GAT import load_models as GAT_load_models
+from scripts.GNN.GraphSAGE import load_models as GS_load_models
 import copy
 import torch
 import json
-import time
-from transformers import Pipeline
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from GPT4_test import get_new_edus_emb, get_new_edus, get_new_edus_gpt4all
+from scripts.LLM.GPT4 import *
+from scripts.GNN.models import GATLinkPrediction
 
 
 def save_all_new_edus(dataset_filename, out_file_path):
@@ -88,7 +88,7 @@ def choose_edus(dataset_filename, embs_filename, edus_file_path, trained_model, 
         curr_dialogue_values = []
 
         for i_emb in range(len(all_new_edus[dialogue_index]['new_edus'])):
-            curr_new_edu_value = predict(
+            curr_new_edu_value = trained_model.predict(
                 dialogue_json=all_dialogues[dialogue_index],
                 old_embs=torch.tensor([item['embedding'] for item in all_embs[dialogue_index]], dtype=torch.float),
                 target_node=target_node,
@@ -135,82 +135,60 @@ def augment(dataset_filename, new_edus_file_path, out_file_path):
 
 
 class DataAugmentationPipeline:
-    def __init__(self, model_name, dataset_filename, trained_GNN, trained_link_predictor, all_new_edus_available=True):
+    def __init__(self, dataset_name, dataset_filename, trained_GNN, trained_link_predictor, all_new_edus_available=True):
         self.model = None
-        self.model_name = model_name
+        self.dataset_name = dataset_name
         self.dataset_filename = dataset_filename
         self.trained_GNN = trained_GNN
         self.trained_link_predictor = trained_link_predictor
         self.all_new_edus_available = all_new_edus_available
 
+
     def __call__(self):
         if not self.all_new_edus_available:
             save_all_new_edus(
                 dataset_filename=self.dataset_filename,
-                out_file_path=f'../../new_edus/{self.model_name}_new_edus.json'
+                out_file_path=f'../new_edus/{self.dataset_name}_new_edus.json'
             )
 
         choose_edus(
             dataset_filename=self.dataset_filename,
-            embs_filename=f'../../embeddings/MPNet/{self.model_name}_training_embeddings.json',
-            edus_file_path=f'../../new_edus/{self.model_name}_new_edus.json',
+            embs_filename=f'../embeddings/MPNet/{self.dataset_name}_training_embeddings.json',
+            edus_file_path=f'../new_edus/{self.dataset_name}_new_edus.json',
             trained_model=self.trained_GNN,
             trained_link_predictor=trained_link_predictor,
-            out_file_path=f'../../new_edus/best/{self.model_name}_best_edus.json'
+            out_file_path=f'../new_edus/best/{self.dataset_name}_best_edus.json'
         )
 
         augment(
             dataset_filename=self.dataset_filename,
-            new_edus_file_path=f'../../new_edus/best/{self.model_name}_best_edus.json',
-            out_file_path=f'../../augmented_datasets/{self.model_name}_augmented.json'
+            new_edus_file_path=f'../new_edus/best/{self.dataset_name}_best_edus.json',
+            out_file_path=f'../augmented_datasets/{self.dataset_name}_augmented.json'
         )
 
 
 if __name__ == '__main__':
-    STAC_dataset_filename = '../../dataset/STAC/train_subindex.json'
-    MOLWENI_dataset_filename = '../../dataset/MOLWENI/train.json'
-    MINECRAFT_dataset_filename = '../../dataset/MINECRAFT/TRAIN_307_bert.json'
-    STAC_embs_filename = '../../embeddings/MPNet/STAC_training_embeddings.json'
-    MOLWENI_embs_filename = '../../embeddings/MPNet/MOLWENI_training_embeddings.json'
-    MINECRAFT_embs_filename = '../../embeddings/MPNet/MINECRAFT_training_embeddings.json'
-    STAC_edus_file_path = '../../new_edus/STAC_new_edus.json'
-    MOLWENI_edus_file_path = '../../new_edus/MOLWENI_new_edus.json'
-    MINECRAFT_edus_file_path = '../../new_edus/MINECRAFT_new_edus.json'
-    STAC_best_edus_file_path = '../../new_edus/best/STAC_best_edus.json'
-    MOLWENI_best_edus_file_path = '../../new_edus/best/MOLWENI_best_edus.json'
-    MINECRAFT_best_edus_file_path = '../../new_edus/best/MINECRAFT_best_edus.json'
-    STAC_trained_models_file_path = 'pretrained_models_STAC.pth'
-    MOLWENI_trained_models_file_path = 'pretrained_models_MOLWENI.pth'
-    MINECRAFT_trained_models_file_path = 'pretrained_models_MINECRAFT.pth'
-    STAC_augmented_path = '../../augmented_datasets/STAC_augmented.json'
-    MOLWENI_augmented_path = '../../augmented_datasets/MOLWENI_augmented.json'
-    MINECRAFT_augmented_path = '../../augmented_datasets/MINECRAFT_augmented.json'
-    # trained_model, trained_link_predictor = load_models('../../pretrain_model_GS/Minecraft_pretrained_models_1.pth', num_layers=3)
-    trained_model, trained_link_predictor = load_models('../../pretrain_model_GAT/pretrained_models_MINECRAFT.pth')
+    STAC_dataset_filename = '../dataset/STAC/train_subindex.json'
+    MOLWENI_dataset_filename = '../dataset/MOLWENI/train.json'
+    MINECRAFT_dataset_filename = '../dataset/MINECRAFT/TRAIN_307_bert.json'
+    STAC_embs_filename = '../embeddings/MPNet/STAC_training_embeddings.json'
+    MOLWENI_embs_filename = '../embeddings/MPNet/MOLWENI_training_embeddings.json'
+    MINECRAFT_embs_filename = '../embeddings/MPNet/MINECRAFT_training_embeddings.json'
+    STAC_edus_file_path = '../new_edus/STAC_new_edus.json'
+    MOLWENI_edus_file_path = '../new_edus/MOLWENI_new_edus.json'
+    MINECRAFT_edus_file_path = '../new_edus/MINECRAFT_new_edus.json'
+    STAC_best_edus_file_path = '../new_edus/best/STAC_best_edus.json'
+    MOLWENI_best_edus_file_path = '../new_edus/best/MOLWENI_best_edus.json'
+    MINECRAFT_best_edus_file_path = '../new_edus/best/MINECRAFT_best_edus.json'
+    STAC_augmented_path = '../augmented_datasets/STAC_augmented.json'
+    MOLWENI_augmented_path = '../augmented_datasets/MOLWENI_augmented.json'
+    MINECRAFT_augmented_path = '../augmented_datasets/MINECRAFT_augmented.json'
 
-
-# save_all_new_edus_batch(
-    #     dataset_filename=MINECRAFT_dataset_filename,
-    #     out_file_path=MINECRAFT_edus_file_path
-    # )
-    #
-    # choose_edus(
-    #     dataset_filename=MOLWENI_dataset_filename,
-    #     embs_filename=MOLWENI_embs_filename,
-    #     edus_file_path=MOLWENI_edus_file_path,
-    #     trained_model=trained_model,
-    #     trained_link_predictor=trained_link_predictor,
-    #     out_file_path=MOLWENI_best_edus_file_path
-    # )
-    #
-    # augment(
-    #     dataset_filename=MOLWENI_dataset_filename,
-    #     new_edus_file_path=MOLWENI_best_edus_file_path,
-    #     out_file_path=MOLWENI_augmented_path
-    # )
+    trained_model, trained_link_predictor = GS_load_models('../pretrain_model_GS/Minecraft_pretrained_models_1.pth', num_layers=3)
+    # trained_model, trained_link_predictor = GAT_load_models('../pretrain_model_GAT/pretrained_models_MINECRAFT.pth')
 
     dataAugmenter = DataAugmentationPipeline(
-        model_name='MINECRAFT',
+        dataset_name='MINECRAFT',
         dataset_filename=MINECRAFT_dataset_filename,
         trained_GNN=trained_model,
         trained_link_predictor=trained_link_predictor,

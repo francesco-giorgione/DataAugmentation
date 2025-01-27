@@ -1,15 +1,16 @@
-
-
-from graph_builder import *
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
+from scripts.constraints.graph_builder import *
 
 
 def get_path_dataset(name_dataset):
     if name_dataset == "STAC":
-        return 'dataset/STAC/train_subindex.json'
+        return '../../dataset/STAC/train_subindex.json'
     elif name_dataset == "MINECRAFT":
-        return 'dataset/MINECRAFT/TRAIN_307_bert.json'
+        return '../../dataset/MINECRAFT/TRAIN_307_bert.json'
     elif name_dataset == "MOLWENI":
-        return 'dataset/MOLWENI/train.json'
+        return '../../dataset/MOLWENI/train.json'
     else: 
         return ''
 

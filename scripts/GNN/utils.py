@@ -1,14 +1,9 @@
 import json
-from matplotlib import pyplot as plt
 import torch
-from torch_geometric.utils import negative_sampling
-from torch_geometric.loader import DataLoader
-import torch.nn.functional as F
-from torch_geometric.data import Data
-from GAT import GATLinkPrediction, LinkPredictorMLP
-import random
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from sklearn.metrics import accuracy_score, precision_score, recall_score
-from torch.utils.data import Dataset
 import networkx as nx
 from statistics import mean
 from matplotlib import pyplot as plt
@@ -35,15 +30,6 @@ def save_models(model, link_predictor, path):
         'link_predictor_state_dict': link_predictor.state_dict()
     }, path)
     # print(f"Modelli salvati in {path}")
-
-
-def load_models(path, model, link_predictor):
-    checkpoint = torch.load(path, map_location=torch.device('cpu'), weights_only=True)  # Usa 'cuda' se hai una GPU
-    model.load_state_dict(checkpoint['model_state_dict'])
-    link_predictor.load_state_dict(checkpoint['link_predictor_state_dict'])
-
-    print(f"Modelli caricati da {path}")
-    return model, link_predictor
 
 
 def get_embs(embs_filename, dialogue_index):
@@ -81,7 +67,7 @@ def super_new_get_edges(all_dialogues, dialogue_index):
                         dtype=torch.long)
 
 
-def eval_metrics(pos_test_pred, neg_test_pred, threshold = 0.5):
+def eval_metrics(pos_test_pred, neg_test_pred, threshold=0.5):
     preds = torch.cat([pos_test_pred, neg_test_pred], dim=0)
     labels = torch.cat([torch.ones_like(pos_test_pred), torch.zeros_like(neg_test_pred)], dim=0)
     preds_bin = (preds > threshold).float()

@@ -2,13 +2,16 @@ from transformers import LlamaTokenizer, LlamaForCausalLM
 import transformers
 import torch
 import re
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from get_edu import *
-from vincoli_edu import *
+from scripts.constraints.vincoli_edu import *
 import random
 
 model_name = "meta-llama/Llama-2-7b-chat-hf"
 
-HUGGINGFACE_TOKEN = "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"
+HUGGINGFACE_TOKEN = "<your-huggingface-token>"
 
 # Caricamento tokenizer e modello
 tokenizer = LlamaTokenizer.from_pretrained(model_name, token=HUGGINGFACE_TOKEN)
@@ -199,7 +202,6 @@ def extract_generated_edu(response, removed_edu):
 
 
 if __name__ == '__main__':
-
     dataset_name_list = ["STAC_training"]
 
     for dataset_name in dataset_name_list:
